@@ -16,7 +16,7 @@ jobs:
           go-version: '1.17.5'
 
       - name: Build
-        wotking-directory: src
+        working-directory: src
         run: |
           go build -o ../clover_sim
           
