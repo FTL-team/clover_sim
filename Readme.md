@@ -9,6 +9,13 @@ mkdir clover_sim && cd clover_sim
 curl https://raw.githubusercontent.com/FTL-team/clover_sim/main/setup.sh | bash
 ```
 
+## Requirements
+* curl
+* systemd-nspawn
+* systemd-run
+* nftables
+* iproute2
+
 # How to use
 1. Go to `clover_sim` directory
 2. Create workspace(workspace is concept for managing and transfering simulator files: projects, packages, etc.)

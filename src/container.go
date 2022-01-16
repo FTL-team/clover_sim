@@ -7,14 +7,14 @@ import (
 	"path"
 	"path/filepath"
 	"syscall"
+	"time"
 )
-
 
 type Container struct {
 	Name string
 	Path string
 
-	Bases []string
+	Bases  []string
 	Mounts []string
 }
 
@@ -22,7 +22,7 @@ func mountOverlayRootfs(c *Container, workspace *Workspace) error {
 	lowerDir := ""
 	for i, base := range c.Bases {
 		if i != 0 {
-			lowerDir += ":" 
+			lowerDir += ":"
 		}
 		base_real, err := filepath.EvalSymlinks(path.Join(LocateSetup(), "base_fs", base))
 		if err != nil {
@@ -58,28 +58,37 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 		return nil, err
 	}
 
-	
 	return container, nil
 }
 
 func DestroyContainer(container *Container) {
 	fmt.Println("Destroying container: " + container.Path)
-	for _, mount := range container.Mounts {
-		fmt.Println("Unmounting: " + mount)
-		syscall.Unmount(mount, 0)
+
+	for i := 0; i < 3; i++ {
+		for _, mount := range container.Mounts {
+			syscall.Unmount(mount, 0)
+		}
+
+		time.Sleep(time.Second)
 	}
+
 	os.RemoveAll(container.Path)
 }
 
-func GetContainerLauncher(container *Container) (*exec.Cmd, error) {
+func GetContainerLauncher(container *Container, net *NetworkConfig) (*exec.Cmd, error) {
 	nspawnArgs := []string{}
 
+	nspawnArgs = append(nspawnArgs, "--machine", container.Name)
+	nspawnArgs = append(nspawnArgs, "--directory", ".")
+
 	readonlyMounts := []string{"/tmp/.X11-unix", "/tmp/.virgl_test"}
-	readonlyMounts = append(readonlyMounts, path.Join(LocateUserHome(), ".Xauthority") + ":/home/clover/.Xauthority")
+	readonlyMounts = append(readonlyMounts, path.Join(LocateUserHome(), ".Xauthority")+":/home/clover/.Xauthority")
 
 	for _, mount := range readonlyMounts {
 		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind=%s", mount))
 	}
+
+	nspawnArgs = append(nspawnArgs, "--network-bridge="+net.BridgeName)
 
 	nspawnArgs = append(nspawnArgs, "--boot")
 	nspawnArgs = append(nspawnArgs, "clover_sim")
@@ -88,4 +97,37 @@ func GetContainerLauncher(container *Container) (*exec.Cmd, error) {
 	cmd.Dir = path.Join(container.Path, "rootfs")
 
 	return cmd, nil
+}
+
+type ExecContainerOptions struct {
+	Command        string
+	ServiceOptions map[string]string
+	Description    string
+}
+
+func ExecInsideContainer(container *Container, options ExecContainerOptions) *exec.Cmd {
+	runOptions := []string{}
+	for k, v := range options.ServiceOptions {
+		runOptions = append(runOptions, fmt.Sprintf("--property=%s=%s", k, v))
+	}
+	runOptions = append(runOptions, "--description="+options.Description)
+	runOptions = append(runOptions, "--machine="+container.Name)
+	runOptions = append(runOptions, "-P")
+	runOptions = append(runOptions, "/bin/bash")
+	runOptions = append(runOptions, "-c")
+	runOptions = append(runOptions, options.Command)
+
+	return exec.Command("systemd-run", runOptions...)
+}
+
+func SetupContainerNetwork(container *Container, net *NetworkConfig) error {
+	cmd := ExecInsideContainer(container, ExecContainerOptions{
+		Command: GenerateContainerNetworkSetup(net),
+		ServiceOptions: map[string]string{
+			"After": "network-online.target",
+			"Wants": "network-online.target",
+		},
+		Description: "Network setup",
+	})
+	return cmd.Run()
 }

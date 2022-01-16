@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 )
@@ -10,13 +11,21 @@ import (
 func LaunchSimulator(workspace *Workspace) error {
 	go StartVirgl()
 	time.Sleep(time.Second)
-	container, err := CreateContainer("base", workspace)
+
+	net, err := SetupNetworkBridge()
+	defer DestroyNetworkBridge(net)
+	if err != nil {
+		fmt.Println("Failed to setup network")
+		return err
+	}
+
+	container, err := CreateContainer("cloversim", workspace)
 	if err != nil {
 		return err
 	}
 	defer DestroyContainer(container)
 
-	cmd, err := GetContainerLauncher(container)
+	cmd, err := GetContainerLauncher(container, net)
 	if err != nil {
 		return err
 	}
@@ -24,6 +33,12 @@ func LaunchSimulator(workspace *Workspace) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
+
+	go func() {
+		time.Sleep(time.Millisecond * 800) // Wait 1.5 second for systemd to start
+		
+		SetupContainerNetwork(container, net)
+	}()
 
 	return cmd.Run()
 }
