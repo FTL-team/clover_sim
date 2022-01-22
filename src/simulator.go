@@ -19,7 +19,7 @@ func LaunchSimulator(workspace *Workspace) error {
 		return err
 	}
 
-	container, err := CreateContainer("cloversim", workspace)
+	container, err := CreateContainer("clover0", workspace)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func LaunchSimulator(workspace *Workspace) error {
 	go func() {
 		time.Sleep(time.Millisecond * 800) // Wait 1.5 second for systemd to start
 		
-		container.SetupNetwork(net)
+		net.SetupContainer(container)
 		container.SendXauth()
 	}()
 

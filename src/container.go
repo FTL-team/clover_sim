@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -87,6 +88,8 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 		return nil, err
 	}
 
+	ioutil.WriteFile(path.Join(container.Path, "hostname"), []byte(container.Name + "\n"), 0644)
+
 	return container, nil
 }
 
@@ -112,6 +115,8 @@ func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 	nspawnArgs = append(nspawnArgs, "--directory", ".")
 
 	readonlyMounts := []string{"/tmp/.X11-unix", "/tmp/.virgl_test"}
+	readonlyMounts = append(readonlyMounts,  path.Join(LocateSetup(), "containers", "hosts") + ":/etc/hosts")
+	readonlyMounts = append(readonlyMounts, path.Join(container.Path, "hostname") + ":/etc/hostname")
 
 	for _, mount := range readonlyMounts {
 		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind-ro=%s", mount))
@@ -154,19 +159,6 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 
 	return exec.Command("systemd-run", runOptions...)
 }
-
-func (container *Container) SetupNetwork(net *NetworkConfig) error {
-	cmd := container.Exec(ExecContainerOptions{
-		Command: net.GenerateContainerSetup(),
-		ServiceOptions: map[string]string{
-			"After": "network-online.target",
-			"Wants": "network-online.target",
-		},
-		Description: "Network setup",
-	})
-	return cmd.Run()
-}
-
 
 func (container *Container) SendXauth() error {
 	xauthCmd := exec.Command("xauth", "nextract", "-", ":0")
