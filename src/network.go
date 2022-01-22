@@ -10,7 +10,7 @@ type NetworkConfig struct {
 	LastAllocatedIP int
 }
 
-func SetupNetworkBridge() (*NetworkConfig, error) {
+func SetupNetwork() (*NetworkConfig, error) {
 	fmt.Println("Setting up network")
 
 	net := &NetworkConfig{
@@ -34,7 +34,7 @@ func SetupNetworkBridge() (*NetworkConfig, error) {
 	return net, err
 }
 
-func DestroyNetworkBridge(net *NetworkConfig) error {
+func (net *NetworkConfig) Destroy() error {
 	fmt.Println("Destroying network")
 	return ExecCommands([][]string{
 		{"ip", "link", "del", "name", net.BridgeName},
@@ -42,13 +42,13 @@ func DestroyNetworkBridge(net *NetworkConfig) error {
 	});
 }
 
-func GetNextNetworkId(net *NetworkConfig) string {
+func (net *NetworkConfig) GetNextId() string {
 	net.LastAllocatedIP++
 	return "192.168.77." + strconv.Itoa(net.LastAllocatedIP)
 }
 
-func GenerateContainerNetworkSetup(net *NetworkConfig) string {
-	ip := GetNextNetworkId(net)
+func (net *NetworkConfig) GenerateContainerSetup() string {
+	ip := net.GetNextId()
 
 	return "ip addr add " + ip + "/24 dev host0 && ip link set host0 up && ip route add default via 192.168.77.1"
 }

@@ -16,10 +16,11 @@ type Container struct {
 	Path string
 
 	Bases  []string
+	UpperLayer string
 	Mounts []string
 }
 
-func mountOverlayRootfs(c *Container, workspace *Workspace) error {
+func mountOverlayRootfs(c *Container) error {
 	lowerDir := ""
 	for i, base := range c.Bases {
 		if i != 0 {
@@ -31,8 +32,10 @@ func mountOverlayRootfs(c *Container, workspace *Workspace) error {
 		}
 		lowerDir += base_real
 	}
-	upperDir := path.Join(workspace.Path, "fs")
-	workDir := path.Join(c.Path, "overlay_work")
+
+	upperDir := path.Join(c.UpperLayer, "fs")
+	workDir := path.Join(c.UpperLayer, ".overlay_work")
+	os.Mkdir(workDir, os.ModePerm)
 
 	targetDir := path.Join(c.Path, "rootfs")
 
@@ -47,13 +50,16 @@ func mountOverlayRootfs(c *Container, workspace *Workspace) error {
 }
 
 func CreateContainer(name string, workspace *Workspace) (*Container, error) {
-	container := &Container{Name: name}
-	container.Path = path.Join(LocateSetup(), "containers", container.Name)
-	container.Bases = []string{"base"}
+	container := &Container{
+		Name: name,
+		Path: path.Join(LocateSetup(), "containers", name),
+		Bases: []string{"base"},
+		UpperLayer: path.Join(workspace.Path),
+	}
 
 	os.MkdirAll(container.Path, os.ModePerm)
 
-	err := mountOverlayRootfs(container, workspace)
+	err := mountOverlayRootfs(container)
 	if err != nil {
 		// destroyContainer(container)
 		return nil, err
@@ -62,7 +68,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	return container, nil
 }
 
-func DestroyContainer(container *Container) {
+func (container *Container) Destroy() {
 	fmt.Println("Destroying container: " + container.Path)
 
 	for i := 0; i < 3; i++ {
@@ -74,9 +80,10 @@ func DestroyContainer(container *Container) {
 	}
 
 	os.RemoveAll(container.Path)
+	os.Remove(path.Join(container.UpperLayer, ".overlay_work"))
 }
 
-func GetContainerLauncher(container *Container, net *NetworkConfig) (*exec.Cmd, error) {
+func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 	nspawnArgs := []string{}
 
 	nspawnArgs = append(nspawnArgs, "--machine", container.Name)
@@ -106,7 +113,7 @@ type ExecContainerOptions struct {
 	Uid int
 }
 
-func ExecInsideContainer(container *Container, options ExecContainerOptions) *exec.Cmd {
+func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 	runOptions := []string{}
 	for k, v := range options.ServiceOptions {
 		runOptions = append(runOptions, fmt.Sprintf("--property=%s=%s", k, v))
@@ -126,9 +133,9 @@ func ExecInsideContainer(container *Container, options ExecContainerOptions) *ex
 	return exec.Command("systemd-run", runOptions...)
 }
 
-func SetupContainerNetwork(container *Container, net *NetworkConfig) error {
-	cmd := ExecInsideContainer(container, ExecContainerOptions{
-		Command: GenerateContainerNetworkSetup(net),
+func (container *Container) SetupNetwork(net *NetworkConfig) error {
+	cmd := container.Exec(ExecContainerOptions{
+		Command: net.GenerateContainerSetup(),
 		ServiceOptions: map[string]string{
 			"After": "network-online.target",
 			"Wants": "network-online.target",
@@ -139,7 +146,7 @@ func SetupContainerNetwork(container *Container, net *NetworkConfig) error {
 }
 
 
-func SendXauthToContainer(container *Container) error {
+func (container *Container) SendXauth() error {
 	xauthCmd := exec.Command("xauth", "nextract", "-", ":0")
 	out, err := xauthCmd.Output()
 	if err != nil {
@@ -151,7 +158,7 @@ func SendXauthToContainer(container *Container) error {
 	out[2] = 'f'
 	out[3] = 'f'
 
-	containerCmd := ExecInsideContainer(container, ExecContainerOptions{
+	containerCmd := container.Exec(ExecContainerOptions{
 		Command: "xauth nmerge - ",
 		Description: "Setup xauth",
 		Uid: 1000,

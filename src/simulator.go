@@ -12,8 +12,8 @@ func LaunchSimulator(workspace *Workspace) error {
 	go StartVirgl()
 	time.Sleep(time.Second)
 
-	net, err := SetupNetworkBridge()
-	defer DestroyNetworkBridge(net)
+	net, err := SetupNetwork()
+	defer net.Destroy()
 	if err != nil {
 		fmt.Println("Failed to setup network")
 		return err
@@ -23,9 +23,9 @@ func LaunchSimulator(workspace *Workspace) error {
 	if err != nil {
 		return err
 	}
-	defer DestroyContainer(container)
+	defer container.Destroy()
 
-	cmd, err := GetContainerLauncher(container, net)
+	cmd, err := container.GetLauncher(net)
 	if err != nil {
 		return err
 	}
@@ -37,8 +37,8 @@ func LaunchSimulator(workspace *Workspace) error {
 	go func() {
 		time.Sleep(time.Millisecond * 800) // Wait 1.5 second for systemd to start
 		
-		SetupContainerNetwork(container, net)
-		SendXauthToContainer(container)
+		container.SetupNetwork(net)
+		container.SendXauth()
 	}()
 
 	return cmd.Run()

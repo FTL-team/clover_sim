@@ -21,7 +21,7 @@ type WorkspaceSerialized struct {
 	Name string `yaml:"name"`
 }
 
-func SerializeWorkspace(workspace *Workspace) ([]byte, error) {
+func (workspace *Workspace) Serialize() ([]byte, error) {
 	return yaml.Marshal(&WorkspaceSerialized{
 		Name: workspace.Name,
 	})
@@ -52,7 +52,7 @@ func CreateWorkspace(name string) (*Workspace, error) {
 
 	os.MkdirAll(Workspace.Path, os.ModePerm)
 	
-	serializedWorkspace, err := SerializeWorkspace(Workspace)
+	serializedWorkspace, err := Workspace.Serialize()
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +87,8 @@ func LoadWorkspace(name string) (*Workspace, error) {
 	return workspace, nil
 }
 
-func RemoveWorkspace(Workspace *Workspace) error {
-	return os.RemoveAll(Workspace.Path)
+func (workspace *Workspace) Remove() error {
+	return os.RemoveAll(workspace.Path)
 }
 
 func ListWorkspaceNames() ([]string, error) {
@@ -104,7 +104,7 @@ func ListWorkspaceNames() ([]string, error) {
 	return names, nil
 }
 
-func ExportWorkspace(workspace *Workspace) error {
+func (workspace *Workspace) Export() error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return err

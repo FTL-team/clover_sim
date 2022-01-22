@@ -48,7 +48,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							return RemoveWorkspace(workspace)
+							return workspace.Remove()
 						},
 					},
 					{
@@ -83,7 +83,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							return ExportWorkspace(workspace)
+							return workspace.Export()
 						},
 					},
 					{
