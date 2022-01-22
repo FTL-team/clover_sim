@@ -49,12 +49,34 @@ func mountOverlayRootfs(c *Container) error {
 	return syscall.Mount("overlay", targetDir, "overlay", 0, fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
 }
 
+func mountTmpfs(c *Container) (string, error) {
+	targetDir := path.Join(c.Path, "tmpfs")
+	os.MkdirAll(targetDir, os.ModePerm)
+	err := syscall.Mount("tmpfs", targetDir, "tmpfs", 0, "")
+	if err != nil {
+		return targetDir, err
+	}
+	c.Mounts = append(c.Mounts, targetDir)
+
+	err = os.MkdirAll(path.Join(targetDir, "fs"), os.ModePerm)
+	return targetDir, err
+}
+
 func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	container := &Container{
 		Name: name,
 		Path: path.Join(LocateSetup(), "containers", name),
 		Bases: []string{"base"},
-		UpperLayer: path.Join(workspace.Path),
+	}
+
+	if workspace != nil {
+		container.UpperLayer = path.Join(workspace.Path)
+	} else {
+		upl, err := mountTmpfs(container)
+		if err != nil {
+			return container, err
+		}
+		container.UpperLayer = upl
 	}
 
 	os.MkdirAll(container.Path, os.ModePerm)
