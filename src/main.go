@@ -134,29 +134,8 @@ COMMANDS:
 {{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t"}}{{.Usage}}{{range .Subcommands}}
 {{ "   "}} {{join .Names ", "}}{{ "\t"}}{{.Usage}} {{end}}{{ "\n" }}{{end}}{{end}}{{end}}
 `
-	// cli.SubcommandHelpTemplate = `
-
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// wait_virgl := make(chan bool)
-	// go start_virgl(wait_virgl)
-	// if <-wait_virgl {
-	// 	fmt.Println("Virgl server ready")
-	// }else {
-	// 	fmt.Println("Virgl server failed to start")
-	// 	os.Exit(1)
-	// }
-
-	// c, err := createContainer("clover_sim")
-	// time.Sleep(5 * time.Second)
-	// defer destroyContainer(c)
-	// if err != nil {
-	// 	fmt.Println("Could not create container")
-	// 	panic(err)
-	// }
-
-	// fmt.Scanln()
 }
