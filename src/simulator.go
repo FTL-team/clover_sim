@@ -38,6 +38,7 @@ func LaunchSimulator(workspace *Workspace) error {
 		time.Sleep(time.Millisecond * 800) // Wait 1.5 second for systemd to start
 		
 		SetupContainerNetwork(container, net)
+		SendXauthToContainer(container)
 	}()
 
 	return cmd.Run()

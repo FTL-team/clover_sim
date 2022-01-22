@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -82,10 +83,9 @@ func GetContainerLauncher(container *Container, net *NetworkConfig) (*exec.Cmd, 
 	nspawnArgs = append(nspawnArgs, "--directory", ".")
 
 	readonlyMounts := []string{"/tmp/.X11-unix", "/tmp/.virgl_test"}
-	readonlyMounts = append(readonlyMounts, path.Join(LocateUserHome(), ".Xauthority")+":/home/clover/.Xauthority")
 
 	for _, mount := range readonlyMounts {
-		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind=%s", mount))
+		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind-ro=%s", mount))
 	}
 
 	nspawnArgs = append(nspawnArgs, "--network-bridge="+net.BridgeName)
@@ -103,6 +103,7 @@ type ExecContainerOptions struct {
 	Command        string
 	ServiceOptions map[string]string
 	Description    string
+	Uid int
 }
 
 func ExecInsideContainer(container *Container, options ExecContainerOptions) *exec.Cmd {
@@ -110,6 +111,11 @@ func ExecInsideContainer(container *Container, options ExecContainerOptions) *ex
 	for k, v := range options.ServiceOptions {
 		runOptions = append(runOptions, fmt.Sprintf("--property=%s=%s", k, v))
 	}
+
+	if options.Uid != 0 {
+		runOptions = append(runOptions, fmt.Sprintf("--uid=%d", options.Uid))
+	}
+
 	runOptions = append(runOptions, "--description="+options.Description)
 	runOptions = append(runOptions, "--machine="+container.Name)
 	runOptions = append(runOptions, "-P")
@@ -130,4 +136,31 @@ func SetupContainerNetwork(container *Container, net *NetworkConfig) error {
 		Description: "Network setup",
 	})
 	return cmd.Run()
+}
+
+
+func SendXauthToContainer(container *Container) error {
+	xauthCmd := exec.Command("xauth", "nextract", "-", ":0")
+	out, err := xauthCmd.Output()
+	if err != nil {
+		return err
+	}
+
+	out[0] = 'f'
+	out[1] = 'f'
+	out[2] = 'f'
+	out[3] = 'f'
+
+	containerCmd := ExecInsideContainer(container, ExecContainerOptions{
+		Command: "xauth nmerge - ",
+		Description: "Setup xauth",
+		Uid: 1000,
+		ServiceOptions: map[string]string{
+			"After": "multi-user.target",
+			"Wants": "multi-user.target",
+		},
+	})
+	containerCmd.Stdin = bytes.NewReader(out)
+	containerCmd.Stdout = os.Stdout
+	return containerCmd.Run()
 }
