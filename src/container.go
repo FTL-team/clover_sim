@@ -19,6 +19,8 @@ type Container struct {
 	Bases  []string
 	UpperLayer string
 	Mounts []string
+
+	IPs []string
 }
 
 func mountOverlayRootfs(c *Container) error {
@@ -45,7 +47,7 @@ func mountOverlayRootfs(c *Container) error {
 
 	c.Mounts = append(c.Mounts, targetDir)
 
-	fmt.Println(fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
+	// fmt.Println(fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
 
 	return syscall.Mount("overlay", targetDir, "overlay", 0, fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
 }

@@ -19,7 +19,7 @@ ff02::2    ip6-allrouters
 
 type NetworkConfig struct {
 	BridgeName      string
-	LastAllocatedIP int
+	AllocatedIPs map[int]bool
 	HostsPath string
 	HostsFile *os.File
 }
@@ -29,7 +29,7 @@ func SetupNetwork() (*NetworkConfig, error) {
 
 	net := &NetworkConfig{
 		BridgeName:      "cloversim",
-		LastAllocatedIP: 1,
+		AllocatedIPs: map[int]bool{1: true},
 		HostsPath: path.Join(LocateSetup(), "containers", "hosts"),
 	}
 
@@ -49,16 +49,14 @@ func SetupNetwork() (*NetworkConfig, error) {
 		return net, err
 	}
 
+	os.Remove(net.HostsPath)
 	f, err := os.OpenFile(net.HostsPath, os.O_RDWR|os.O_CREATE, 0644)
 	
-	fmt.Println("Opening")
 	net.HostsFile = f
 	if err != nil {
-
 		return net, err
 	}
-	fmt.Println("Opened")
-
+	
 	_, err = net.HostsFile.WriteString(hostsDefault)
 	if err != nil {
 		return net, err
@@ -86,14 +84,23 @@ func (net *NetworkConfig) Destroy() error {
 	});
 }
 
-func (net *NetworkConfig) GetNextIP() string {
-	net.LastAllocatedIP++
-	return "192.168.77." + strconv.Itoa(net.LastAllocatedIP)
+func (net *NetworkConfig) GetNextIP(desired int) string {
+
+	if desired <= 0 {
+		desired = 10			
+	}
+
+	for net.AllocatedIPs[desired] == true {
+		desired++
+	}
+	net.AllocatedIPs[desired] = true
+
+	return "192.168.77." + strconv.Itoa(desired)
 }
 
 
-func (net *NetworkConfig) SetupContainer(container *Container) error {
-	ip := net.GetNextIP()
+func (net *NetworkConfig) SetupContainer(container *Container, desiredIP int) error {
+	ip := net.GetNextIP(desiredIP)
 
 	setIpCommand := fmt.Sprintf("ip addr add %s/24 dev host0 && ip link set host0 up && ip route add default via 192.168.77.1", ip)
 	cmd := container.Exec(ExecContainerOptions{
@@ -106,6 +113,7 @@ func (net *NetworkConfig) SetupContainer(container *Container) error {
 	})
 
 	net.AddHosts(ip, container.Name)
+	container.IPs = append(container.IPs, ip)
 	
 	return cmd.Run()
 }
