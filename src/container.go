@@ -21,6 +21,8 @@ type Container struct {
 	Mounts []string
 
 	IPs []string
+
+	Logger *Logger
 }
 
 func mountOverlayRootfs(c *Container) error {
@@ -47,9 +49,11 @@ func mountOverlayRootfs(c *Container) error {
 
 	c.Mounts = append(c.Mounts, targetDir)
 
-	// fmt.Println(fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
+	options := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 
-	return syscall.Mount("overlay", targetDir, "overlay", 0, fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
+	c.Logger.Verbose("Mounting overlay rootfs: mount -t overlay overlay %s %s", targetDir, options)
+
+	return syscall.Mount("overlay", targetDir, "overlay", 0, options)
 }
 
 func mountTmpfs(c *Container) (string, error) {
@@ -70,6 +74,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 		Name: name,
 		Path: path.Join(LocateSetup(), "containers", name),
 		Bases: []string{"base"},
+		Logger: NewLogger(name),
 	}
 
 	if workspace != nil {
@@ -96,7 +101,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 }
 
 func (container *Container) Destroy() {
-	fmt.Println("Destroying container: " + container.Path)
+	container.Logger.Info("Destroying container: %s", container.Name)
 
 	for i := 0; i < 3; i++ {
 		for _, mount := range container.Mounts {
@@ -128,6 +133,8 @@ func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 
 	nspawnArgs = append(nspawnArgs, "--boot")
 	nspawnArgs = append(nspawnArgs, "clover_sim")
+
+	container.Logger.Verbose("Systemd-nspawn options: %s", nspawnArgs)
 
 	cmd := exec.Command("systemd-nspawn", nspawnArgs...)
 	cmd.Dir = path.Join(container.Path, "rootfs")

@@ -25,7 +25,7 @@ type NetworkConfig struct {
 }
 
 func SetupNetwork() (*NetworkConfig, error) {
-	fmt.Println("Setting up network")
+	HostLogger.Info("Setting up network")
 
 	net := &NetworkConfig{
 		BridgeName:      "cloversim",
@@ -77,7 +77,7 @@ func (net *NetworkConfig) AddHosts(ip string, name string) error {
 }
 
 func (net *NetworkConfig) Destroy() error {
-	fmt.Println("Destroying network")
+	HostLogger.Info("Destroying network")
 	return ExecCommands([][]string{
 		{"ip", "link", "del", "name", net.BridgeName},
 		{"nft", "flush", "table", "cloversim_nat"},
@@ -115,6 +115,8 @@ func (net *NetworkConfig) SetupContainer(container *Container, desiredIP int) er
 	net.AddHosts(ip, container.Name)
 	container.IPs = append(container.IPs, ip)
 	
+	container.Logger.Verbose("Container network ready: %s", ip)
+
 	return cmd.Run()
 }
 

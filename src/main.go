@@ -2,20 +2,40 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/urfave/cli/v2"
 	// "time"
 )
 
+var HostLogger *Logger
+
 func main() {
+	HostLogger = NewLogger("host")
+	
 	if os.Geteuid() != 0 {
-		fmt.Println("You should run this as root")
+		HostLogger.Error("You should run this as root")
 		os.Exit(1)
 	}
 
+
 	app := &cli.App{
+		Flags: []cli.Flag{
+		  &cli.BoolFlag{
+				Name: "verbose",
+				Usage: "enable verbose logging",
+
+			},
+		},
+		Before: func(c *cli.Context) error {
+			if c.Bool("verbose") {
+				SetLogLevel(VERBOSE_LOGLEVEL)
+			}else{
+				SetLogLevel(INFO_LOGLEVEL)
+			}
+			
+			return nil
+		},
 		Commands: []*cli.Command{
 			{
 				Name:    "workspace",
@@ -116,7 +136,7 @@ func main() {
 					}
 					workspace, err := LoadWorkspace(c.Args().First())
 					if err != nil {
-						fmt.Println("Failed to load workspace, check if it exists")
+						HostLogger.Error("Failed to load workspace, check if it exists")
 						return err
 					}
 
@@ -136,6 +156,6 @@ COMMANDS:
 `
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		HostLogger.Error("%s", err)
 	}
 }

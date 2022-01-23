@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -36,7 +35,7 @@ func Prepare() error {
 	if err := UnpackFS("base"); err != nil {
 		return err
 	}
-	fmt.Println("Base FS unpacked")
+	HostLogger.Info("Base FS unpacked")
 
 	return nil
 }

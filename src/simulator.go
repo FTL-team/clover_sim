@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -45,6 +44,12 @@ func (s *SimulatorStatus) RUnlock() {
 func LaunchMachine(options MachineOptions, net *NetworkConfig, status *SimulatorStatus) (error) {
 	container, err := CreateContainer(options.Name, options.Workspace)
 	if err != nil {
+		if container != nil {
+			container.Logger.Error("Failed to create container: %s", err)
+		}else{
+			HostLogger.Error("Failed to create container: %s", err)
+		}
+
 		return err
 	}
 	defer container.Destroy()
@@ -56,19 +61,27 @@ func LaunchMachine(options MachineOptions, net *NetworkConfig, status *Simulator
 	}
 	status.WUnlock()
 
+	container.Logger.Info("Launching container: %s ", container.Name)
+
 	cmd, err := container.GetLauncher(net)
 	if err != nil {
+		container.Logger.Error("Failed to launch container: %s", err)
 		return err
 	}
 
+	Running := true
+
 	go func() {
 		time.Sleep(time.Millisecond * 800) // Wait 1.5 second for systemd to start
-		
+		if !Running {
+			return
+		}
+
 		net.SetupContainer(container, options.DesiredIP)
 		
 		container.SendXauth()
 
-		fmt.Printf("Container %s is ready\n", container.Name)
+		container.Logger.Info("Container %s is ready", container.Name)
 
 		status.WLock()
 		status.Machines[options.Name] = MachineStatus{
@@ -80,6 +93,12 @@ func LaunchMachine(options MachineOptions, net *NetworkConfig, status *Simulator
 	}()
 
 	err = cmd.Run()
+	Running = false
+	if err != nil {
+		container.Logger.Error("Container failed: %s", err)
+	}else{
+		container.Logger.Info("Container %s exited", container.Name)
+	}
 
 	status.WLock()
 	status.Machines[options.Name] = MachineStatus{
@@ -100,7 +119,7 @@ func LaunchSimulator(workspace *Workspace) error {
 	net, err := SetupNetwork()
 	defer net.Destroy()
 	if err != nil {
-		fmt.Println("Failed to setup network")
+		HostLogger.Error("Failed to setup network")
 		return err
 	}
 
@@ -126,14 +145,11 @@ func LaunchSimulator(workspace *Workspace) error {
 		go func() {
 			wg.Add(1)
 			err = LaunchMachine(machine, net, status)
-			if err != nil {
-				fmt.Printf("Error in container:")
-				fmt.Println(err)
-			}
 			wg.Done()
 		}()
 		time.Sleep(time.Second)
 	}
+
 
 	wg.Wait()
 
