@@ -3,14 +3,9 @@ package main
 import (
 	"sync"
 	"time"
+
 )
 
-
-type MachineStatus struct {
-	Name string
-	IP string
-	Status string
-}
 
 type MachineOptions struct {
 	Name string
@@ -19,29 +14,8 @@ type MachineOptions struct {
 	DesiredIP int
 }
 
-type SimulatorStatus struct {
-	Machines map[string]MachineStatus
-	Locked sync.RWMutex
-}
 
-func (s *SimulatorStatus) WLock() {
-	s.Locked.Lock()
-}
-
-func (s *SimulatorStatus) RLock() {
-	s.Locked.RLock()
-}
-
-func (s *SimulatorStatus) WUnlock() {
-	s.Locked.Unlock()
-}
-
-func (s *SimulatorStatus) RUnlock() {
-	s.Locked.RUnlock()
-}
-
-
-func LaunchMachine(options MachineOptions, net *NetworkConfig, status *SimulatorStatus) (error) {
+func LaunchMachine(options MachineOptions, net *NetworkConfig) (error) {
 	container, err := CreateContainer(options.Name, options.Workspace)
 	if err != nil {
 		if container != nil {
@@ -54,12 +28,6 @@ func LaunchMachine(options MachineOptions, net *NetworkConfig, status *Simulator
 	}
 	defer container.Destroy()
 
-	status.WLock()
-	status.Machines[options.Name] = MachineStatus{
-		Name: options.Name,
-		Status: "launching",
-	}
-	status.WUnlock()
 
 	container.Logger.Info("Launching container: %s ", container.Name)
 
@@ -83,13 +51,6 @@ func LaunchMachine(options MachineOptions, net *NetworkConfig, status *Simulator
 
 		container.Logger.Info("Container %s is ready", container.Name)
 
-		status.WLock()
-		status.Machines[options.Name] = MachineStatus{
-			Name: options.Name,
-			Status: "running",
-			IP: container.IPs[0],
-		}
-		status.WUnlock()
 	}()
 
 	err = cmd.Run()
@@ -99,14 +60,6 @@ func LaunchMachine(options MachineOptions, net *NetworkConfig, status *Simulator
 	}else{
 		container.Logger.Info("Container %s exited", container.Name)
 	}
-
-	status.WLock()
-	status.Machines[options.Name] = MachineStatus{
-		Name: options.Name,
-		Status: "stopped",
-		IP: "",
-	}
-	status.WUnlock()
 
 	return err
 }
@@ -134,17 +87,14 @@ func LaunchSimulator(workspace *Workspace) error {
 			DesiredIP: 0,
 		},
 	}
-
-	status := &SimulatorStatus{
-		Machines: make(map[string]MachineStatus),
-	}
+		
 
 	wg := sync.WaitGroup{}
 
 	for _, machine := range machines {
 		go func() {
 			wg.Add(1)
-			err = LaunchMachine(machine, net, status)
+			err = LaunchMachine(machine, net)
 			wg.Done()
 		}()
 		time.Sleep(time.Second)
