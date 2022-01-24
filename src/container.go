@@ -170,7 +170,7 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 }
 
 func (container *Container) SendXauth() error {
-	xauthCmd := exec.Command("xauth", "nextract", "-", ":0")
+	xauthCmd := exec.Command("xauth", "nextract", "-", os.Getenv("DISPLAY"))
 	out, err := xauthCmd.Output()
 	if err != nil {
 		return err
