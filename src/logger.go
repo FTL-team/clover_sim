@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/FTL-team/clover_sim/src/color"
 )
@@ -16,6 +17,8 @@ const (
 	INFO_LOGLEVEL LogLevel = 0
 	VERBOSE_LOGLEVEL LogLevel = 1
 )
+
+var logMutex sync.Mutex
 
 type Logger struct {
 	Machine string
@@ -71,7 +74,9 @@ func (l *Logger) Printf(prefix string, format string, v ...interface{}) {
 }
 
 func (l *Logger) Print(prefix string, s string) {
+	logMutex.Lock()
 	fmt.Printf("[ %s ][%s]: %s\n", prefix, l.MachinePrefix, s)
+	logMutex.Unlock()
 }
 
 
@@ -81,7 +86,9 @@ func (l *Logger) Eprintf(prefix string, format string, v ...interface{}) {
 }
 
 func (l *Logger) Eprint(prefix string, s string) {
+	logMutex.Lock()
 	fmt.Fprintf(os.Stderr, "[ %s ][%s]: %s\n", prefix, l.MachinePrefix, s)
+	logMutex.Unlock()
 }
 
 

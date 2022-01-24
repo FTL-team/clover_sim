@@ -14,6 +14,8 @@ const (
 	WHITE_ESC = "\x1b[37m"
 
 	GRAY_ESC = "\x1b[2;37m\x1b[38;5;248m"
+
+	UNDERLINE_ESC = "\x1b[4m"
 )
 
 func Black(s string) string {
@@ -48,3 +50,7 @@ func White(s string) string {
 	return WHITE_ESC + s + RESET_ESC
 }
 
+
+func Underline(s string) string {
+	return UNDERLINE_ESC + s + RESET_ESC
+}
