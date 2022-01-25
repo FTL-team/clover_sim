@@ -92,7 +92,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	err := mountOverlayRootfs(container)
 	if err != nil {
 		// destroyContainer(container)
-		return nil, err
+		return container, err
 	}
 
 	ioutil.WriteFile(path.Join(container.Path, "hostname"), []byte(container.Name + "\n"), 0644)
@@ -167,6 +167,10 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 	runOptions = append(runOptions, options.Command)
 
 	return exec.Command("systemd-run", runOptions...)
+}
+
+func (container *Container) Poweroff() error {
+	return exec.Command("systemctl", "--machine=" + container.Name, "poweroff").Run()
 }
 
 func (container *Container) SendXauth() error {

@@ -3,7 +3,9 @@ package main
 import (
 	"sync"
 	"time"
-
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 
@@ -14,8 +16,13 @@ type MachineOptions struct {
 	DesiredIP int
 }
 
+type Simulator struct {
+	net *NetworkConfig
+	stopSignal *sync.Cond
+}
 
-func LaunchMachine(options MachineOptions, net *NetworkConfig) (error) {
+
+func LaunchMachine(options MachineOptions, sim *Simulator) (error) {
 	container, err := CreateContainer(options.Name, options.Workspace)
 	if err != nil {
 		if container != nil {
@@ -31,7 +38,7 @@ func LaunchMachine(options MachineOptions, net *NetworkConfig) (error) {
 
 	container.Logger.Info("Launching container: %s ", container.Name)
 
-	cmd, err := container.GetLauncher(net)
+	cmd, err := container.GetLauncher(sim.net)
 	if err != nil {
 		container.Logger.Error("Failed to launch container: %s", err)
 		return err
@@ -45,12 +52,23 @@ func LaunchMachine(options MachineOptions, net *NetworkConfig) (error) {
 			return
 		}
 
-		net.SetupContainer(container, options.DesiredIP)
+		sim.net.SetupContainer(container, options.DesiredIP)
 		
 		container.SendXauth()
 
 		container.Logger.Info("Container %s is ready", container.Name)
 
+	}()
+
+	go func() {
+		sim.stopSignal.L.Lock()
+		defer sim.stopSignal.L.Unlock()
+		sim.stopSignal.Wait()
+		if Running {
+			Running = false
+			container.Logger.Info("Stopping container %s", container.Name)
+			container.Poweroff()
+		}
 	}()
 
 	err = cmd.Run()
@@ -76,6 +94,11 @@ func LaunchSimulator(workspace *Workspace) error {
 		return err
 	}
 
+	simulator := &Simulator{
+		net: net,
+		stopSignal: sync.NewCond(&sync.Mutex{}),
+	}
+
 	machines := []MachineOptions{
 		{
 			Name: "cloversim",
@@ -88,20 +111,29 @@ func LaunchSimulator(workspace *Workspace) error {
 		},
 	}
 		
-
 	wg := sync.WaitGroup{}
 
 	for _, machine := range machines {
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
-			err = LaunchMachine(machine, net)
+			err = LaunchMachine(machine, simulator)
 			wg.Done()
 		}()
 		time.Sleep(time.Second)
 	}
 
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		for range c {
+			HostLogger.Info("Stopping simulator")
+			simulator.stopSignal.Broadcast()
+		}
+	}()
+
 
 	wg.Wait()
+	HostLogger.Info("All containers stopped")
 
 	return nil
 }
