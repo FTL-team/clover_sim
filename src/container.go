@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -121,7 +123,8 @@ func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 	nspawnArgs = append(nspawnArgs, "--machine", container.Name)
 	nspawnArgs = append(nspawnArgs, "--directory", ".")
 
-	readonlyMounts := []string{"/tmp/.X11-unix", "/tmp/.virgl_test"}
+	readonlyMounts := []string{"/tmp/.virgl_test"}
+	readonlyMounts = append(readonlyMounts, fmt.Sprintf("/tmp/.X11-unix/X%s:/tmp/.X11-unix/X0", os.Getenv("DISPLAY")[1:]))
 	readonlyMounts = append(readonlyMounts,  path.Join(LocateSetup(), "containers", "hosts") + ":/etc/hosts")
 	readonlyMounts = append(readonlyMounts, path.Join(container.Path, "hostname") + ":/etc/hostname")
 
@@ -179,11 +182,32 @@ func (container *Container) SendXauth() error {
 	if err != nil {
 		return err
 	}
+	l := strings.Split(string(out), "\n")
+	for i, _ := range l {
 
-	out[0] = 'f'
-	out[1] = 'f'
-	out[2] = 'f'
-	out[3] = 'f'
+		parts := strings.Fields(string(l[i]))
+		if len(parts) > 0 {
+			parts[0] = "ffff"
+
+			dd, err := strconv.Atoi(parts[len(parts) - 5])
+			if err != nil {
+				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
+				panic(err)
+			}
+
+
+			di, err := strconv.Atoi(os.Getenv("DISPLAY")[1:])
+			if err != nil {
+				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
+				panic(err)
+			}
+
+			parts[len(parts) - 5] = strconv.Itoa(dd - di)
+		}
+		l[i] = strings.Join(parts, " ")
+	}
+
+	out = []byte(strings.Join(l, "\n"))
 
 	containerCmd := container.Exec(ExecContainerOptions{
 		Command: "xauth nmerge - ",
@@ -196,5 +220,6 @@ func (container *Container) SendXauth() error {
 	})
 	containerCmd.Stdin = bytes.NewReader(out)
 	containerCmd.Stdout = os.Stdout
+	containerCmd.Stderr = os.Stderr
 	return containerCmd.Run()
 }
