@@ -150,6 +150,8 @@ type ExecContainerOptions struct {
 	ServiceOptions map[string]string
 	Description    string
 	Uid int
+	Gid int
+	Unit string
 }
 
 func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
@@ -162,11 +164,20 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 		runOptions = append(runOptions, fmt.Sprintf("--uid=%d", options.Uid))
 	}
 
+	if options.Gid != 0 {
+		runOptions = append(runOptions, fmt.Sprintf("--gid=%d", options.Gid))
+	}
+
+	if options.Unit != "" {
+		runOptions = append(runOptions, fmt.Sprintf("--unit=%s", options.Unit))
+		runOptions = append(runOptions, "--remain-after-exit")
+	}
+
 	runOptions = append(runOptions, "--description="+options.Description)
 	runOptions = append(runOptions, "--machine="+container.Name)
 	runOptions = append(runOptions, "-P")
 	runOptions = append(runOptions, "/bin/bash")
-	runOptions = append(runOptions, "-c")
+	runOptions = append(runOptions, "-ic")
 	runOptions = append(runOptions, options.Command)
 
 	return exec.Command("systemd-run", runOptions...)
@@ -219,7 +230,5 @@ func (container *Container) SendXauth() error {
 		},
 	})
 	containerCmd.Stdin = bytes.NewReader(out)
-	containerCmd.Stdout = os.Stdout
-	containerCmd.Stderr = os.Stderr
 	return containerCmd.Run()
 }

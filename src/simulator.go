@@ -1,11 +1,11 @@
 package main
 
 import (
-	"sync"
-	"time"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 )
 
 
@@ -14,11 +14,36 @@ type MachineOptions struct {
 	Workspace *Workspace
 	Network *NetworkConfig
 	DesiredIP int
+	Mode string
 }
 
 type Simulator struct {
 	net *NetworkConfig
 	stopSignal *sync.Cond
+}
+
+func LaunchContainerSim(container *Container, mode string) {
+	container.Logger.Info("Launching container simulator node: %s", mode)
+
+	cmd := container.Exec(ExecContainerOptions{
+		Command: ". /etc/profile; . ~/.bashrc; roslaunch cloversim " + mode + ".launch",
+		Description: "Start simulator",
+		Uid: 1000,
+		Gid: 1000,
+		ServiceOptions: map[string]string{
+			"After": "multi-user.target",
+			"Wants": "multi-user.target",
+			"EnvironmentFile": "/etc/environment",
+		},
+		Unit: "cloversim.service",
+	})
+	cmd.StdinPipe()
+	// cmd.Stderr = os.Stderr
+	// cmd.Stdout = os.Stdout
+	go func() {
+		cmd.Run()
+		container.Logger.Info("Container simulator node exited")
+	}()
 }
 
 
@@ -58,6 +83,7 @@ func LaunchMachine(options MachineOptions, sim *Simulator) (error) {
 
 		container.Logger.Info("Container %s is ready", container.Name)
 
+		LaunchContainerSim(container, options.Mode)
 	}()
 
 	go func() {
@@ -104,10 +130,12 @@ func LaunchSimulator(workspace *Workspace) error {
 			Name: "cloversim",
 			Workspace: nil,
 			DesiredIP: 2,
+			Mode: "simulator",
 		}, {
 			Name: "clover0",
 			Workspace: workspace,
 			DesiredIP: 0,
+			Mode: "copter",
 		},
 	}
 		
