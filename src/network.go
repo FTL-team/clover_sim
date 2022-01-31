@@ -3,19 +3,34 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"path"
+	"os"
 )
+
+const hostsDefault = `# This file is managed by cloversim
+# Default
+127.0.0.1  localhost
+::1        localhost ip6-localhost ip6-loopback
+ff02::1    ip6-allnodes
+ff02::2    ip6-allrouters
+
+# Containers
+`
 
 type NetworkConfig struct {
 	BridgeName      string
-	LastAllocatedIP int
+	AllocatedIPs map[int]bool
+	HostsPath string
+	HostsFile *os.File
 }
 
 func SetupNetwork() (*NetworkConfig, error) {
-	fmt.Println("Setting up network")
+	HostLogger.Info("Setting up network")
 
 	net := &NetworkConfig{
 		BridgeName:      "cloversim",
-		LastAllocatedIP: 1,
+		AllocatedIPs: map[int]bool{1: true},
+		HostsPath: path.Join(LocateSetup(), "containers", "hosts"),
 	}
 
 	setupCommands := [][]string {
@@ -30,25 +45,79 @@ func SetupNetwork() (*NetworkConfig, error) {
 	}
 
 	err := ExecCommands(setupCommands)
+	if err != nil {
+		return net, err
+	}
 
+	os.Remove(net.HostsPath)
+	f, err := os.OpenFile(net.HostsPath, os.O_RDWR|os.O_CREATE, 0644)
+	
+	net.HostsFile = f
+	if err != nil {
+		return net, err
+	}
+	
+	_, err = net.HostsFile.WriteString(hostsDefault)
+	if err != nil {
+		return net, err
+	}
+
+	net.AddHosts("192.168.77.1", "host")
+	
 	return net, err
 }
 
+func (net *NetworkConfig) AddHosts(ip string, name string) error {
+	_, err := net.HostsFile.WriteString(fmt.Sprintf("%s\t%s\n", ip, name))
+	if err != nil {
+		return err
+	}
+	net.HostsFile.Sync()
+	return nil
+}
+
 func (net *NetworkConfig) Destroy() error {
-	fmt.Println("Destroying network")
+	HostLogger.Info("Destroying network")
 	return ExecCommands([][]string{
 		{"ip", "link", "del", "name", net.BridgeName},
 		{"nft", "flush", "table", "cloversim_nat"},
 	});
 }
 
-func (net *NetworkConfig) GetNextId() string {
-	net.LastAllocatedIP++
-	return "192.168.77." + strconv.Itoa(net.LastAllocatedIP)
+func (net *NetworkConfig) GetNextIP(desired int) string {
+
+	if desired <= 0 {
+		desired = 10			
+	}
+
+	for net.AllocatedIPs[desired] == true {
+		desired++
+	}
+	net.AllocatedIPs[desired] = true
+
+	return "192.168.77." + strconv.Itoa(desired)
 }
 
-func (net *NetworkConfig) GenerateContainerSetup() string {
-	ip := net.GetNextId()
 
-	return "ip addr add " + ip + "/24 dev host0 && ip link set host0 up && ip route add default via 192.168.77.1"
+func (net *NetworkConfig) SetupContainer(container *Container, desiredIP int) error {
+	ip := net.GetNextIP(desiredIP)
+
+	setIpCommand := fmt.Sprintf("ip addr add %s/24 dev host0 && ip link set host0 up && ip route add default via 192.168.77.1", ip)
+	cmd := container.Exec(ExecContainerOptions{
+		Command: setIpCommand,
+		ServiceOptions: map[string]string{
+			"After": "network-online.target",
+			"Wants": "network-online.target",
+		},
+		Description: "Network setup",
+	})
+
+	net.AddHosts(ip, container.Name)
+	container.IPs = append(container.IPs, ip)
+	
+	container.Logger.Verbose("Container network ready: %s", ip)
+
+	return cmd.Run()
 }
+
+

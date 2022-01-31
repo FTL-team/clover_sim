@@ -10,7 +10,7 @@ import (
 func LocateSetup() string {
 	ex, err := os.Getwd()
 	if err != nil {
-		fmt.Println("Could not determine setup location")
+		HostLogger.Error("Could not determine setup location")
 		panic(err)
 	}
 	return ex
@@ -34,7 +34,8 @@ func LocateUserHome() string {
 	homePath := "/home/" + user
 
 	if _, err := os.Stat(homePath); err != nil {
-		panic(fmt.Errorf("Could not find home directory for user %s, report this bug", user))
+		HostLogger.Error("Could not find home directory of user, report this bug")
+		panic(err)
 	}
 
 	return homePath

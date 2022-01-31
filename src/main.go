@@ -2,20 +2,40 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/urfave/cli/v2"
 	// "time"
 )
 
+var HostLogger *Logger
+
 func main() {
+	HostLogger = NewLogger("host")
+	
 	if os.Geteuid() != 0 {
-		fmt.Println("You should run this as root")
+		HostLogger.Error("You should run this as root")
 		os.Exit(1)
 	}
 
+
 	app := &cli.App{
+		Flags: []cli.Flag{
+		  &cli.BoolFlag{
+				Name: "verbose",
+				Usage: "enable verbose logging",
+
+			},
+		},
+		Before: func(c *cli.Context) error {
+			if c.Bool("verbose") {
+				SetLogLevel(VERBOSE_LOGLEVEL)
+			}else{
+				SetLogLevel(INFO_LOGLEVEL)
+			}
+			
+			return nil
+		},
 		Commands: []*cli.Command{
 			{
 				Name:    "workspace",
@@ -116,7 +136,7 @@ func main() {
 					}
 					workspace, err := LoadWorkspace(c.Args().First())
 					if err != nil {
-						fmt.Println("Failed to load workspace, check if it exists")
+						HostLogger.Error("Failed to load workspace, check if it exists")
 						return err
 					}
 
@@ -134,29 +154,8 @@ COMMANDS:
 {{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t"}}{{.Usage}}{{range .Subcommands}}
 {{ "   "}} {{join .Names ", "}}{{ "\t"}}{{.Usage}} {{end}}{{ "\n" }}{{end}}{{end}}{{end}}
 `
-	// cli.SubcommandHelpTemplate = `
-
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		HostLogger.Error("%s", err)
 	}
-
-	// wait_virgl := make(chan bool)
-	// go start_virgl(wait_virgl)
-	// if <-wait_virgl {
-	// 	fmt.Println("Virgl server ready")
-	// }else {
-	// 	fmt.Println("Virgl server failed to start")
-	// 	os.Exit(1)
-	// }
-
-	// c, err := createContainer("clover_sim")
-	// time.Sleep(5 * time.Second)
-	// defer destroyContainer(c)
-	// if err != nil {
-	// 	fmt.Println("Could not create container")
-	// 	panic(err)
-	// }
-
-	// fmt.Scanln()
 }

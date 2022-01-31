@@ -3,10 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -18,6 +21,10 @@ type Container struct {
 	Bases  []string
 	UpperLayer string
 	Mounts []string
+
+	IPs []string
+
+	Logger *Logger
 }
 
 func mountOverlayRootfs(c *Container) error {
@@ -44,9 +51,24 @@ func mountOverlayRootfs(c *Container) error {
 
 	c.Mounts = append(c.Mounts, targetDir)
 
-	fmt.Println(fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
+	options := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 
-	return syscall.Mount("overlay", targetDir, "overlay", 0, fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir))
+	c.Logger.Verbose("Mounting overlay rootfs: mount -t overlay overlay %s %s", targetDir, options)
+
+	return syscall.Mount("overlay", targetDir, "overlay", 0, options)
+}
+
+func mountTmpfs(c *Container) (string, error) {
+	targetDir := path.Join(c.Path, "tmpfs")
+	os.MkdirAll(targetDir, os.ModePerm)
+	err := syscall.Mount("tmpfs", targetDir, "tmpfs", 0, "")
+	if err != nil {
+		return targetDir, err
+	}
+	c.Mounts = append(c.Mounts, targetDir)
+
+	err = os.MkdirAll(path.Join(targetDir, "fs"), os.ModePerm)
+	return targetDir, err
 }
 
 func CreateContainer(name string, workspace *Workspace) (*Container, error) {
@@ -54,7 +76,17 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 		Name: name,
 		Path: path.Join(LocateSetup(), "containers", name),
 		Bases: []string{"base"},
-		UpperLayer: path.Join(workspace.Path),
+		Logger: NewLogger(name),
+	}
+
+	if workspace != nil {
+		container.UpperLayer = path.Join(workspace.Path)
+	} else {
+		upl, err := mountTmpfs(container)
+		if err != nil {
+			return container, err
+		}
+		container.UpperLayer = upl
 	}
 
 	os.MkdirAll(container.Path, os.ModePerm)
@@ -62,14 +94,16 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	err := mountOverlayRootfs(container)
 	if err != nil {
 		// destroyContainer(container)
-		return nil, err
+		return container, err
 	}
+
+	ioutil.WriteFile(path.Join(container.Path, "hostname"), []byte(container.Name + "\n"), 0644)
 
 	return container, nil
 }
 
 func (container *Container) Destroy() {
-	fmt.Println("Destroying container: " + container.Path)
+	container.Logger.Info("Destroying container: %s", container.Name)
 
 	for i := 0; i < 3; i++ {
 		for _, mount := range container.Mounts {
@@ -89,7 +123,10 @@ func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 	nspawnArgs = append(nspawnArgs, "--machine", container.Name)
 	nspawnArgs = append(nspawnArgs, "--directory", ".")
 
-	readonlyMounts := []string{"/tmp/.X11-unix", "/tmp/.virgl_test"}
+	readonlyMounts := []string{"/tmp/.virgl_test"}
+	readonlyMounts = append(readonlyMounts, fmt.Sprintf("/tmp/.X11-unix/X%s:/tmp/.X11-unix/X0", os.Getenv("DISPLAY")[1:]))
+	readonlyMounts = append(readonlyMounts,  path.Join(LocateSetup(), "containers", "hosts") + ":/etc/hosts")
+	readonlyMounts = append(readonlyMounts, path.Join(container.Path, "hostname") + ":/etc/hostname")
 
 	for _, mount := range readonlyMounts {
 		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind-ro=%s", mount))
@@ -99,6 +136,8 @@ func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 
 	nspawnArgs = append(nspawnArgs, "--boot")
 	nspawnArgs = append(nspawnArgs, "clover_sim")
+
+	container.Logger.Verbose("Systemd-nspawn options: %s", nspawnArgs)
 
 	cmd := exec.Command("systemd-nspawn", nspawnArgs...)
 	cmd.Dir = path.Join(container.Path, "rootfs")
@@ -111,6 +150,8 @@ type ExecContainerOptions struct {
 	ServiceOptions map[string]string
 	Description    string
 	Uid int
+	Gid int
+	Unit string
 }
 
 func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
@@ -123,40 +164,61 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 		runOptions = append(runOptions, fmt.Sprintf("--uid=%d", options.Uid))
 	}
 
+	if options.Gid != 0 {
+		runOptions = append(runOptions, fmt.Sprintf("--gid=%d", options.Gid))
+	}
+
+	if options.Unit != "" {
+		runOptions = append(runOptions, fmt.Sprintf("--unit=%s", options.Unit))
+		runOptions = append(runOptions, "--remain-after-exit")
+	}
+
 	runOptions = append(runOptions, "--description="+options.Description)
 	runOptions = append(runOptions, "--machine="+container.Name)
 	runOptions = append(runOptions, "-P")
 	runOptions = append(runOptions, "/bin/bash")
-	runOptions = append(runOptions, "-c")
+	runOptions = append(runOptions, "-ic")
 	runOptions = append(runOptions, options.Command)
 
 	return exec.Command("systemd-run", runOptions...)
 }
 
-func (container *Container) SetupNetwork(net *NetworkConfig) error {
-	cmd := container.Exec(ExecContainerOptions{
-		Command: net.GenerateContainerSetup(),
-		ServiceOptions: map[string]string{
-			"After": "network-online.target",
-			"Wants": "network-online.target",
-		},
-		Description: "Network setup",
-	})
-	return cmd.Run()
+func (container *Container) Poweroff() error {
+	return exec.Command("systemctl", "--machine=" + container.Name, "poweroff").Run()
 }
 
-
 func (container *Container) SendXauth() error {
-	xauthCmd := exec.Command("xauth", "nextract", "-", ":0")
+	xauthCmd := exec.Command("xauth", "nextract", "-", os.Getenv("DISPLAY"))
 	out, err := xauthCmd.Output()
 	if err != nil {
 		return err
 	}
+	l := strings.Split(string(out), "\n")
+	for i, _ := range l {
 
-	out[0] = 'f'
-	out[1] = 'f'
-	out[2] = 'f'
-	out[3] = 'f'
+		parts := strings.Fields(string(l[i]))
+		if len(parts) > 0 {
+			parts[0] = "ffff"
+
+			dd, err := strconv.Atoi(parts[len(parts) - 5])
+			if err != nil {
+				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
+				panic(err)
+			}
+
+
+			di, err := strconv.Atoi(os.Getenv("DISPLAY")[1:])
+			if err != nil {
+				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
+				panic(err)
+			}
+
+			parts[len(parts) - 5] = strconv.Itoa(dd - di)
+		}
+		l[i] = strings.Join(parts, " ")
+	}
+
+	out = []byte(strings.Join(l, "\n"))
 
 	containerCmd := container.Exec(ExecContainerOptions{
 		Command: "xauth nmerge - ",
@@ -168,6 +230,5 @@ func (container *Container) SendXauth() error {
 		},
 	})
 	containerCmd.Stdin = bytes.NewReader(out)
-	containerCmd.Stdout = os.Stdout
 	return containerCmd.Run()
 }

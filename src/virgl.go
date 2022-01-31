@@ -9,13 +9,15 @@ import (
 )
 
 func StartVirgl() {
-	fmt.Println("Staring virgl")
+	HostLogger.Info("Staring virgl")
 	cmd := exec.Command(path.Join(LocateSetup(), "./virgl/virgl_test_server"))
 	cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", path.Join(LocateSetup(), "virgl")))
-	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
 	uid, gid, err := GetUserID()
 	if err != nil {
-		fmt.Println("Failed to get user id, before sudo")
+		HostLogger.Error("Failed to get sudo user id")
 		panic(err)
 	}
 
@@ -25,7 +27,7 @@ func StartVirgl() {
 	// cmd.Stdout = os.Stdout
 	err = cmd.Run()
 	if err != nil {
-		fmt.Println("Failed to start virgl")
+		HostLogger.Error("Failed to start virgl: %s", err)
 		panic(err)
 	}
 }
