@@ -194,7 +194,7 @@ func (container *Container) SendXauth() error {
 		return err
 	}
 	l := strings.Split(string(out), "\n")
-	for i, _ := range l {
+	for i := range l {
 
 		parts := strings.Fields(string(l[i]))
 		if len(parts) > 0 {

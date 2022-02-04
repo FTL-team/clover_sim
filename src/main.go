@@ -49,7 +49,7 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "create")
-								return fmt.Errorf("No name specified")
+								return fmt.Errorf("no name specified")
 							}
 							_, err := CreateWorkspace(c.Args().First())
 							return err
@@ -61,7 +61,7 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "remove")
-								return fmt.Errorf("No name specified")
+								return fmt.Errorf("no name specified")
 							}
 							workspace, err := LoadWorkspace(c.Args().First())
 							
@@ -97,7 +97,7 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "remove")
-								return fmt.Errorf("No name specified")
+								return fmt.Errorf("no name specified")
 							}
 							workspace, err := LoadWorkspace(c.Args().First())
 							if err != nil {
@@ -113,7 +113,7 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "import")
-								return fmt.Errorf("No path to file specified")
+								return fmt.Errorf("no path to file specified")
 							}
 							return ImportWorkspace(c.Args().First())
 						},
@@ -132,7 +132,7 @@ func main() {
 				Action: func(c *cli.Context) error {
 					if c.Args().Len() != 1 {
 						cli.ShowCommandHelp(c, "remove")
-						return fmt.Errorf("No workspace name specified")
+						return fmt.Errorf("no workspace name specified")
 					}
 					workspace, err := LoadWorkspace(c.Args().First())
 					if err != nil {
