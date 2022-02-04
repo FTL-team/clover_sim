@@ -90,7 +90,7 @@ func (net *NetworkConfig) GetNextIP(desired int) string {
 		desired = 10			
 	}
 
-	for net.AllocatedIPs[desired] == true {
+	for net.AllocatedIPs[desired] {
 		desired++
 	}
 	net.AllocatedIPs[desired] = true

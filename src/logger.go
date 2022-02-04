@@ -8,8 +8,6 @@ import (
 	"github.com/FTL-team/clover_sim/src/color"
 )
 
-var statusStrings []string
-
 type LogLevel int
 var logLevel LogLevel
 const (

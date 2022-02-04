@@ -31,7 +31,3 @@ func StartVirgl() {
 		panic(err)
 	}
 }
-
-func setup_virgl() {
-
-}

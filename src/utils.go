@@ -46,7 +46,7 @@ func ExecCommands(commands [][]string) (error) {
 	for _, cmd := range commands {
 		out, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("Failed to run command:\nOutput: \n%s\nError: %s", out, err)
+			return fmt.Errorf("failed to run command:\nOutput: \n%s\nError: %s", out, err)
 		}
 	}
 	return nil
