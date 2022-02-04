@@ -21,6 +21,22 @@ type WorkspaceSerialized struct {
 	Name string `yaml:"name"`
 }
 
+func validateWorkspaceName(name string) error {
+	for _, c := range name {
+
+		ok := false
+		ok = ok || (c > 'a' && c < 'z')
+		ok = ok || (c > 'A' && c < 'Z')
+		ok = ok || (c > '0' && c < '9')
+		ok = ok || (c == '_')
+		if !ok {
+			return fmt.Errorf("invalid workspace name: %s, namespace names can contain only latin letters, numbers, and underscores", name)
+		}
+	}
+
+	return nil
+}
+
 func (workspace *Workspace) Serialize() ([]byte, error) {
 	return yaml.Marshal(&WorkspaceSerialized{
 		Name: workspace.Name,
@@ -34,6 +50,10 @@ func DeserializeWorkspace(data []byte) (*Workspace, error) {
 		return nil, err
 	}
 
+	if err := validateWorkspaceName(workspaceSerialized.Name); err != nil {
+		return nil, err
+	}
+
 	return &Workspace{
 		Name: workspaceSerialized.Name,
 	}, nil
@@ -41,6 +61,11 @@ func DeserializeWorkspace(data []byte) (*Workspace, error) {
 
 
 func CreateWorkspace(name string) (*Workspace, error) {
+
+	if err := validateWorkspaceName(name); err != nil {
+		return nil, err
+	}
+
 	Workspace := &Workspace{
 		Name: name,
 		Path: path.Join(LocateSetup(), "workspaces", name),
