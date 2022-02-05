@@ -118,6 +118,24 @@ func main() {
 							return ImportWorkspace(c.Args().First())
 						},
 					},
+
+					{
+						Name:      "duplicate",
+						Usage:     "Create copy of workspace",
+						ArgsUsage: "SOURCE_WORKSPACE DUPLICATED_WORKSPACE_NAME",
+						Action: func(c *cli.Context) error {
+							if c.Args().Len() != 2 {
+								cli.ShowCommandHelp(c, "duplicate")
+
+								return fmt.Errorf("no source workspace or duplicate workspace name not specified")
+							}
+							workspace, err := LoadWorkspace(c.Args().First())
+							if err != nil {
+								return err
+							}
+							return workspace.Duplicate(c.Args().Get(1))
+						},
+					},
 				},
 			}, {
 				Name: "prepare",

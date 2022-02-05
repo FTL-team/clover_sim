@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"os/exec"
-
-
+	"path"
+	
 	"gopkg.in/yaml.v2"
-
 )
 
 type Workspace struct {
@@ -25,10 +23,11 @@ func validateWorkspaceName(name string) error {
 	for _, c := range name {
 
 		ok := false
-		ok = ok || (c > 'a' && c < 'z')
-		ok = ok || (c > 'A' && c < 'Z')
-		ok = ok || (c > '0' && c < '9')
+		ok = ok || (c >= 'a' && c <= 'z')
+		ok = ok || (c >= 'A' && c <= 'Z')
+		ok = ok || (c >= '0' && c <= '9')
 		ok = ok || (c == '_')
+
 		if !ok {
 			return fmt.Errorf("invalid workspace name: %s, namespace names can contain only latin letters, numbers, and underscores", name)
 		}
@@ -41,6 +40,16 @@ func (workspace *Workspace) Serialize() ([]byte, error) {
 	return yaml.Marshal(&WorkspaceSerialized{
 		Name: workspace.Name,
 	})
+}
+
+func (workspace *Workspace) Save() error {
+
+	serializedWorkspace, err := workspace.Serialize()
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path.Join(workspace.Path, "workspace.yml"), serializedWorkspace, 0777)	
 }
 
 func DeserializeWorkspace(data []byte) (*Workspace, error) {
@@ -76,16 +85,9 @@ func CreateWorkspace(name string) (*Workspace, error) {
 	}
 
 	os.MkdirAll(Workspace.Path, os.ModePerm)
-	
-	serializedWorkspace, err := Workspace.Serialize()
-	if err != nil {
+	if err := Workspace.Save(); err != nil {
 		return nil, err
-	}
-
-	err = ioutil.WriteFile(path.Join(Workspace.Path, "workspace.yml"), serializedWorkspace, 0777)
-	if err != nil {
-		return nil, err
-	}
+	}	
 
 	os.MkdirAll(path.Join(Workspace.Path, "fs"), os.ModePerm)
 
@@ -195,4 +197,29 @@ func ImportWorkspace(file string) error {
 		return err
 	}
 	return os.Rename(unpackingPath, path.Join(LocateSetup(), "workspaces", workspace.Name))
+}
+
+func (sourceWorkspace *Workspace) Duplicate(targetName string) error {
+	if err := validateWorkspaceName(targetName); err != nil {
+		return err
+	}
+
+	targetPath := path.Join(LocateSetup(), "workspaces", targetName)
+	if _, err := os.Stat(targetPath); err == nil {
+		return fmt.Errorf("Workspace %s already exists", targetName)
+	}
+
+	targetWorkspace := &Workspace{
+		Name: targetName,
+		Path: targetPath,
+	}
+
+
+	cmd := exec.Command("cp", "-rp", sourceWorkspace.Path, targetWorkspace.Path)
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+
+	return targetWorkspace.Save()
 }
