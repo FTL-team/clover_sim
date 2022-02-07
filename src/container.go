@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"syscall"
+	"sync"
 	"time"
 )
 
@@ -25,6 +23,18 @@ type Container struct {
 	IPs []string
 
 	Logger *Logger
+
+	Plugins []*ContainerPlugin
+}
+
+type ContainerPlugin struct {
+	Name string
+
+	MountsRO []string
+	MountsRW []string
+	LauncherArguments []string
+	
+	RunOnBoot func(*Container) error
 }
 
 func mountOverlayRootfs(c *Container) error {
@@ -102,6 +112,26 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	return container, nil
 }
 
+func (container *Container) AddPlugin(plugin *ContainerPlugin) {
+	container.Plugins = append(container.Plugins, plugin)
+}
+
+func (container *Container) AddPluginCheckError(plugin *ContainerPlugin, err error) error {
+	if err != nil {
+		if plugin != nil {
+			container.Logger.Error("Plugin %s failed: %s", plugin.Name, err)
+		}else{
+			container.Logger.Error("Plugin error: %s", err)
+		}
+		return err
+	}else{
+		container.Plugins = append(container.Plugins, plugin)
+		return nil
+	}
+}
+
+
+
 func (container *Container) Destroy() {
 	container.Logger.Info("Destroying container: %s", container.Name)
 
@@ -117,22 +147,28 @@ func (container *Container) Destroy() {
 	os.Remove(path.Join(container.UpperLayer, ".overlay_work"))
 }
 
-func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
+func (container *Container) GetLauncher() (*exec.Cmd, error) {
 	nspawnArgs := []string{}
 
 	nspawnArgs = append(nspawnArgs, "--machine", container.Name)
 	nspawnArgs = append(nspawnArgs, "--directory", ".")
 
-	readonlyMounts := []string{"/tmp/.virgl_test"}
-	readonlyMounts = append(readonlyMounts, fmt.Sprintf("/tmp/.X11-unix/X%s:/tmp/.X11-unix/X0", os.Getenv("DISPLAY")[1:]))
-	readonlyMounts = append(readonlyMounts,  path.Join(LocateSetup(), "containers", "hosts") + ":/etc/hosts")
-	readonlyMounts = append(readonlyMounts, path.Join(container.Path, "hostname") + ":/etc/hostname")
+	readonlyMounts := []string{}
+	readwriteMounts := []string{}
+
+	for _, plugin := range container.Plugins {
+		readonlyMounts = append(readonlyMounts, plugin.MountsRO...)
+		readwriteMounts = append(readwriteMounts, plugin.MountsRW...)
+		nspawnArgs = append(nspawnArgs, plugin.LauncherArguments...)
+	}
 
 	for _, mount := range readonlyMounts {
 		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind-ro=%s", mount))
 	}
 
-	nspawnArgs = append(nspawnArgs, "--network-bridge="+net.BridgeName)
+	for _, mount := range readwriteMounts {
+		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind=%s", mount))
+	}
 
 	nspawnArgs = append(nspawnArgs, "--boot")
 	nspawnArgs = append(nspawnArgs, "clover_sim")
@@ -143,6 +179,46 @@ func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 	cmd.Dir = path.Join(container.Path, "rootfs")
 
 	return cmd, nil
+}
+
+func (container *Container) Run(stopSignal *sync.Cond,) error {
+
+	container.Logger.Info("Launching container: %s ", container.Name)
+ 
+	cmd, err := container.GetLauncher()
+	if err != nil {
+		container.Logger.Error("Failed to launch container: %s", err)
+		return err
+	}
+
+	Running := true
+
+	go func() {
+		stopSignal.L.Lock()
+		defer stopSignal.L.Unlock()
+		stopSignal.Wait()
+		if Running {
+			container.Logger.Info("Stopping container %s", container.Name)
+			container.Poweroff()
+		}
+	}()
+
+	go func() {
+		time.Sleep(800 * time.Millisecond)
+		for _, plugin := range container.Plugins {
+			go plugin.RunOnBoot(container)
+		}
+	}()
+
+	err = cmd.Run()
+	Running = false
+	if err != nil {
+		container.Logger.Error("Container failed: %s", err)
+	} else {
+		container.Logger.Info("Container %s exited", container.Name)
+	}
+
+	return err
 }
 
 type ExecContainerOptions struct {
@@ -185,50 +261,4 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 
 func (container *Container) Poweroff() error {
 	return exec.Command("systemctl", "--machine=" + container.Name, "poweroff").Run()
-}
-
-func (container *Container) SendXauth() error {
-	xauthCmd := exec.Command("xauth", "nextract", "-", os.Getenv("DISPLAY"))
-	out, err := xauthCmd.Output()
-	if err != nil {
-		return err
-	}
-	l := strings.Split(string(out), "\n")
-	for i := range l {
-
-		parts := strings.Fields(string(l[i]))
-		if len(parts) > 0 {
-			parts[0] = "ffff"
-
-			dd, err := strconv.Atoi(parts[len(parts) - 5])
-			if err != nil {
-				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
-				panic(err)
-			}
-
-
-			di, err := strconv.Atoi(os.Getenv("DISPLAY")[1:])
-			if err != nil {
-				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
-				panic(err)
-			}
-
-			parts[len(parts) - 5] = strconv.Itoa(dd - di)
-		}
-		l[i] = strings.Join(parts, " ")
-	}
-
-	out = []byte(strings.Join(l, "\n"))
-
-	containerCmd := container.Exec(ExecContainerOptions{
-		Command: "xauth nmerge - ",
-		Description: "Setup xauth",
-		Uid: 1000,
-		ServiceOptions: map[string]string{
-			"After": "multi-user.target",
-			"Wants": "multi-user.target",
-		},
-	})
-	containerCmd.Stdin = bytes.NewReader(out)
-	return containerCmd.Run()
 }
