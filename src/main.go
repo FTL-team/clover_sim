@@ -147,6 +147,13 @@ func main() {
 				Name: "launch",
 				Usage: "Launch simulator",
 				ArgsUsage: "WORKSPACE_NAME",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name: "no-start",
+						Usage: "disable automatic simulator(gazebo, px4, clover, etc.) start",
+					},
+				},
+				
 				Action: func(c *cli.Context) error {
 					if c.Args().Len() != 1 {
 						cli.ShowCommandHelp(c, "remove")
@@ -158,7 +165,10 @@ func main() {
 						return err
 					}
 
-					return LaunchSimulator(workspace)
+					return LaunchSimulator(SimulatorOptions{
+						Workspace: workspace,
+						NoStart: c.Bool("no-start"),
+					})
 				},
 			},
 		},

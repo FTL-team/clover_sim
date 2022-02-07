@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"strconv"
-	"path"
 	"os"
+	"path"
+	"strconv"
 )
 
 const hostsDefault = `# This file is managed by cloversim
@@ -18,22 +18,22 @@ ff02::2    ip6-allrouters
 `
 
 type NetworkConfig struct {
-	BridgeName      string
+	BridgeName   string
 	AllocatedIPs map[int]bool
-	HostsPath string
-	HostsFile *os.File
+	HostsPath    string
+	HostsFile    *os.File
 }
 
 func SetupNetwork() (*NetworkConfig, error) {
 	HostLogger.Info("Setting up network")
 
 	net := &NetworkConfig{
-		BridgeName:      "cloversim",
+		BridgeName:   "cloversim",
 		AllocatedIPs: map[int]bool{1: true},
-		HostsPath: path.Join(LocateSetup(), "containers", "hosts"),
+		HostsPath:    path.Join(LocateSetup(), "containers", "hosts"),
 	}
 
-	setupCommands := [][]string {
+	setupCommands := [][]string{
 		{"ip", "link", "add", "name", net.BridgeName, "type", "bridge"},
 		{"ip", "link", "set", net.BridgeName, "up"},
 		{"ip", "addr", "add", "192.168.77.1/24", "dev", net.BridgeName},
@@ -51,19 +51,19 @@ func SetupNetwork() (*NetworkConfig, error) {
 
 	os.Remove(net.HostsPath)
 	f, err := os.OpenFile(net.HostsPath, os.O_RDWR|os.O_CREATE, 0644)
-	
+
 	net.HostsFile = f
 	if err != nil {
 		return net, err
 	}
-	
+
 	_, err = net.HostsFile.WriteString(hostsDefault)
 	if err != nil {
 		return net, err
 	}
 
 	net.AddHosts("192.168.77.1", "host")
-	
+
 	return net, err
 }
 
@@ -81,13 +81,13 @@ func (net *NetworkConfig) Destroy() error {
 	return ExecCommands([][]string{
 		{"ip", "link", "del", "name", net.BridgeName},
 		{"nft", "flush", "table", "cloversim_nat"},
-	});
+	})
 }
 
 func (net *NetworkConfig) GetNextIP(desired int) string {
 
 	if desired <= 0 {
-		desired = 10			
+		desired = 10
 	}
 
 	for net.AllocatedIPs[desired] {
@@ -98,26 +98,43 @@ func (net *NetworkConfig) GetNextIP(desired int) string {
 	return "192.168.77." + strconv.Itoa(desired)
 }
 
+func (net *NetworkConfig) GetNetworkPlugin(container *Container, desiredIP int) (*ContainerPlugin, error) {
+	plugin := &ContainerPlugin{
+		Name: "network",
+	}
 
-func (net *NetworkConfig) SetupContainer(container *Container, desiredIP int) error {
 	ip := net.GetNextIP(desiredIP)
-
-	setIpCommand := fmt.Sprintf("ip addr add %s/24 dev host0 && ip link set host0 up && ip route add default via 192.168.77.1", ip)
-	cmd := container.Exec(ExecContainerOptions{
-		Command: setIpCommand,
-		ServiceOptions: map[string]string{
-			"After": "network-online.target",
-			"Wants": "network-online.target",
-		},
-		Description: "Network setup",
-	})
-
-	net.AddHosts(ip, container.Name)
 	container.IPs = append(container.IPs, ip)
-	
-	container.Logger.Verbose("Container network ready: %s", ip)
+	net.AddHosts(ip, container.Name)
 
-	return cmd.Run()
+	plugin.MountsRO = []string{
+		path.Join(LocateSetup(), "containers", "hosts") + ":/etc/hosts",
+		path.Join(container.Path, "hostname") + ":/etc/hostname",
+	}
+
+	plugin.LauncherArguments = []string{
+		"--network-bridge="+net.BridgeName,
+	}
+
+	plugin.RunOnBoot = func(container *Container) error {
+
+		setIpCommand := fmt.Sprintf("ip addr add %s/24 dev host0 && ip link set host0 up && ip route add default via 192.168.77.1", ip)
+		cmd := container.Exec(ExecContainerOptions{
+			Command: setIpCommand,
+			ServiceOptions: map[string]string{
+				"After": "network-online.target",
+				"Wants": "network-online.target",
+			},
+			Description: "Network setup",
+		})
+
+		err := cmd.Run()
+		if err == nil {
+			container.Logger.Verbose("Container network ready: %s", ip)
+		}
+
+		return err
+	}
+
+	return plugin, nil
 }
-
-
