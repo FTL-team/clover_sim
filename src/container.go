@@ -259,6 +259,10 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 	return exec.Command("systemd-run", runOptions...)
 }
 
+func (container *Container) Systemctl(options ...string) error {
+	return exec.Command("systemctl", append([]string{"--machine="+container.Name}, options...)...).Run()
+}
+
 func (container *Container) Poweroff() error {
-	return exec.Command("systemctl", "--machine=" + container.Name, "poweroff").Run()
+	return container.Systemctl("poweroff")
 }

@@ -8,12 +8,23 @@ import (
 	"time"
 )
 
+type MachineCommand struct {
+	Command string
+}
+
+type SimulatorCommand struct {
+	Command string
+	MachineCommand MachineCommand
+}
+
 type MachineOptions struct {
 	Name      string
 	Workspace *Workspace
 	Network   *NetworkConfig
 	DesiredIP int
 	Mode      string
+
+	Commander chan MachineCommand
 }
 
 type Simulator struct {
@@ -68,6 +79,20 @@ func LaunchMachine(options MachineOptions, sim *Simulator) error {
 	container.AddPluginCheckError(NewX11Plugin())
 	container.AddPluginCheckError(NewSimulatorServicePlugin(container, options.Mode, sim.startSimulatorAtStart))
 
+	go func() {
+		for {
+			command := <-options.Commander
+			switch command.Command {
+			case "simulator_start":
+				container.Logger.Info("Starting simulator")
+				container.Systemctl("start", "cloversim.service")
+			case "simulator_stop":
+				container.Logger.Info("Stopping simulator")
+				container.Systemctl("stop", "cloversim.service")
+			}
+		}
+	}()
+
 	return container.Run(sim.stopSignal)
 }
 
@@ -94,11 +119,13 @@ func LaunchSimulator(options SimulatorOptions) error {
 			Workspace: nil,
 			DesiredIP: 2,
 			Mode:      "simulator",
+			Commander: make(chan MachineCommand),
 		}, {
 			Name:      "clover0",
 			Workspace: options.Workspace,
 			DesiredIP: 0,
 			Mode:      "copter",
+			Commander: make(chan MachineCommand),
 		},
 	}
 
@@ -112,15 +139,33 @@ func LaunchSimulator(options SimulatorOptions) error {
 		}()
 		time.Sleep(time.Second)
 	}
-
+	
 	c := make(chan os.Signal, 1)
+	promptExit := make(chan bool, 1)
+	simulatorCommands := make(chan SimulatorCommand, 1)
+
+	go func() {
+		for {
+			cmd := <-simulatorCommands
+			if cmd.Command == "machine" {
+				machineCommand := cmd.MachineCommand
+				for _, machine := range machines {
+					machine.Commander <- machineCommand
+				}
+			}
+		}
+	}()
+
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		for range c {
 			HostLogger.Info("Stopping simulator")
+			promptExit <- true
 			simulator.stopSignal.Broadcast()
 		}
 	}()
+
+	go SimulatorController(c, promptExit, simulatorCommands)
 
 	wg.Wait()
 	HostLogger.Info("All containers stopped")

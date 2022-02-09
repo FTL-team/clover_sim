@@ -106,7 +106,7 @@ ExecStart="/bin/bash" "-ic" ". /etc/profile; . ~/.bashrc; mkfifo /tmp/cloversim_
 	plugin.RunOnBoot = func(container *Container) error {
 		if launch {
 			container.Logger.Info("Starting simulator")
-			return exec.Command("systemctl", "--machine="+container.Name, "start", "cloversim.service").Run()
+			return container.Systemctl("start", "cloversim.service")
 		}
 		return nil
 	}
