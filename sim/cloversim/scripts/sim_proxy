@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+
+import os
+import selectors
+import socket
+from xmlrpc.client import ServerProxy
+from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
+from urllib.parse import urlparse
+
+CALLER_ID = "/sim_proxy"
+
+topics_map = {
+  "/main_camera/image_raw": "sensor_msgs/Image",
+  "/main_camera/camera_info": "sensor_msgs/CameraInfo",
+  "/led/state": "led_msgs/LEDStateArray"
+}
+
+service_map = {"/led/set_leds": "led_msgs/SetLEDs"}
+
+
+master = ServerProxy(os.environ['ROS_MASTER_URI'])
+remote_master = ServerProxy(os.environ['PROXY_ADDRESS'])
+
+topic_publishers = { topic: [] for topic in topics_map }
+service_providers = { service: "" for service in service_map }
+
+should_shutdown = False
+
+def map_uri_to_id(uri):
+  urlparse_result = urlparse(uri)
+  return f"{CALLER_ID}/{urlparse_result.hostname}_{urlparse_result.port}"
+
+
+
+class CurrentNodeApi(SimpleXMLRPCServer):
+
+  def __init__(self,
+               addr,
+               requestHandler=SimpleXMLRPCRequestHandler,
+               logRequests=True,
+               allow_none=False,
+               encoding=None,
+               bind_and_activate=True,
+               use_builtin_types=False):
+    SimpleXMLRPCServer.__init__(self, addr, requestHandler, logRequests, allow_none, encoding, bind_and_activate, use_builtin_types)
+
+    self.register_introspection_functions()
+
+    self.register_function(self.getBusStats)
+    self.register_function(self.getBusInfo)
+    self.register_function(self.getMasterUri)
+    self.register_function(self.shutdown)
+    self.register_function(self.getPid)
+    self.register_function(self.getSubscriptions)
+    self.register_function(self.getPublications)
+    self.register_function(self.publisherUpdate)
+
+
+  def getBusStats(self, caller_id):
+    return [1, "ok", []]
+
+  def getBusInfo(self, caller_id):
+    return [1, "ok", []]
+
+  def getMasterUri(self, caller_id):
+    return [1, "ok", os.environ['ROS_MASTER_URI']]
+
+  def shutdown(self, caller_id):
+    global should_shutdown
+    should_shutdown = True
+
+  def getPid(self, caller_id):
+    return [1, "ok", os.getpid()]
+
+  def getSubscriptions(self, caller_id):
+    return [1, "ok", [[k, v] for k, v in topics_map.items()]]
+
+  def getPublications(self, caller_id):
+    return [1, "ok", []]
+
+  def publisherUpdate(self, caller_id, topic, publishers):
+    print("Publisher updates", caller_id)
+    prev_pubs = topic_publishers[topic]
+    for p in publishers:
+      if p not in prev_pubs:
+        print(f"New topic publisher, topic: {topic}, publisher: {p}")
+        remote_master.registerPublisher(map_uri_to_id(p), topic,
+                                        topics_map[topic], p)
+
+    for p in prev_pubs:
+      if p not in publishers:
+        print(f"Topic publisher left, topic: {topic}, publisher: {p}")
+        remote_master.unregisterPublisher(map_uri_to_id(p), topic, p)
+
+    topic_publishers[topic] = publishers
+
+    return [1, "ok", 0]
+
+
+def update_services(caller_uri):
+  for service in service_map:
+    status, _, provider = master.lookupService(CALLER_ID, service)
+    print(status, _, provider)
+    if status == 1:
+      if provider != service_providers[service]:
+        print(f"New service provider, service: {service}, provider: {provider}")
+        remote_master.registerService(map_uri_to_id(caller_uri), service, provider,
+                                      caller_uri)
+        service_providers[service] = provider
+
+with CurrentNodeApi(("0.0.0.0", 0)) as server:
+  _, port = server.server_address
+  current_node_uri = f"http://{socket.gethostname()}:{port}"
+  print("Slave api started", current_node_uri)
+
+  for topic, topic_type in topics_map.items():
+    code, statusMessage, publishers = master.registerSubscriber(CALLER_ID, topic, topic_type, current_node_uri)
+    server.publisherUpdate(CALLER_ID, topic, publishers)
+
+  update_services(current_node_uri)
+
+  sel = selectors.DefaultSelector()
+  sel.register(server, selectors.EVENT_READ)
+
+  while True:
+    events = sel.select(0.5)
+    for key, mask in events:
+      key.fileobj.handle_request()
+
+    update_services(current_node_uri)
