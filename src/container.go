@@ -100,6 +100,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	}
 
 	os.MkdirAll(container.Path, os.ModePerm)
+	os.MkdirAll(path.Join(container.Path, "shared"), os.ModePerm)
 
 	err := mountOverlayRootfs(container)
 	if err != nil {
@@ -107,7 +108,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 		return container, err
 	}
 
-	ioutil.WriteFile(path.Join(container.Path, "hostname"), []byte(container.Name + "\n"), 0644)
+	ioutil.WriteFile(container.ContainerFile("hostname"), []byte(container.Name + "\n"), 0644)
 
 	return container, nil
 }
@@ -265,4 +266,17 @@ func (container *Container) Systemctl(options ...string) error {
 
 func (container *Container) Poweroff() error {
 	return container.Systemctl("poweroff")
+}
+
+func (container *Container) ContainerFile(name string) string {
+	return path.Join(container.Path, name)
+}
+
+var createdShared = false
+func SharedContainerFile(name string) string {
+	if !createdShared {
+		os.MkdirAll(path.Join(LocateSetup(), "containers", "_shared"), os.ModePerm)
+		createdShared = true
+	}
+	return 	path.Join(LocateSetup(), "containers", "_shared", name)
 }

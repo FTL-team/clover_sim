@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"strconv"
 	"strings"
 )
@@ -93,7 +92,7 @@ User=1000
 Group=1000
 ExecStart="/bin/bash" "-ic" ". /etc/profile; . ~/.bashrc; mkfifo /tmp/cloversim_inp; cat /tmp/cloversim_inp | roslaunch --wait cloversim %s.launch"
 `, mode)
-	servicePath := path.Join(container.Path, "cloversim.service")
+	servicePath := container.ContainerFile("cloversim.service")
 	err := ioutil.WriteFile(servicePath, []byte(service), 0644)
 	if err != nil {
 		return plugin, err

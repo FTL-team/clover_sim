@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 	"strconv"
 )
 
@@ -30,7 +29,7 @@ func SetupNetwork() (*NetworkConfig, error) {
 	net := &NetworkConfig{
 		BridgeName:   "cloversim",
 		AllocatedIPs: map[int]bool{1: true},
-		HostsPath:    path.Join(LocateSetup(), "containers", "hosts"),
+		HostsPath:    SharedContainerFile("hosts"),
 	}
 
 	setupCommands := [][]string{
@@ -108,8 +107,8 @@ func (net *NetworkConfig) GetNetworkPlugin(container *Container, desiredIP int) 
 	net.AddHosts(ip, container.Name)
 
 	plugin.MountsRO = []string{
-		path.Join(LocateSetup(), "containers", "hosts") + ":/etc/hosts",
-		path.Join(container.Path, "hostname") + ":/etc/hostname",
+		SharedContainerFile("hosts") + ":/etc/hosts",
+		container.ContainerFile("hostname") + ":/etc/hostname",
 	}
 
 	plugin.LauncherArguments = []string{
