@@ -168,6 +168,7 @@ func LaunchSimulator(options SimulatorOptions) error {
 	go SimulatorController(c, promptExit, simulatorCommands)
 
 	wg.Wait()
+	promptExit <- true
 	HostLogger.Info("All containers stopped")
 
 	return nil
