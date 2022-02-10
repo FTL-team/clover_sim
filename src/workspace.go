@@ -223,3 +223,11 @@ func (sourceWorkspace *Workspace) Duplicate(targetName string) error {
 
 	return targetWorkspace.Save()
 }
+
+func (workspace *Workspace) CreateOverlayEntry() (*OverlayEntry) {
+	overlayEntry := &OverlayEntry{
+		Path: path.Join(workspace.Path, "fs"),
+		OverlayWork: path.Join(workspace.Path, ".overlay_work"),
+	}
+	return overlayEntry
+}

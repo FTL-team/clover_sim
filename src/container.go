@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
-	"syscall"
 	"sync"
 	"time"
 )
@@ -16,9 +14,7 @@ type Container struct {
 	Name string
 	Path string
 
-	Bases  []string
-	UpperLayer string
-	Mounts []string
+	Overlay *Overlay
 
 	IPs []string
 
@@ -37,72 +33,35 @@ type ContainerPlugin struct {
 	RunOnBoot func(*Container) error
 }
 
-func mountOverlayRootfs(c *Container) error {
-	lowerDir := ""
-	for i, base := range c.Bases {
-		if i != 0 {
-			lowerDir += ":"
-		}
-		base_real, err := filepath.EvalSymlinks(path.Join(LocateSetup(), "base_fs", base))
-		if err != nil {
-			return err
-		}
-		lowerDir += base_real
-	}
-
-	upperDir := path.Join(c.UpperLayer, "fs")
-	workDir := path.Join(c.UpperLayer, ".overlay_work")
-	os.Mkdir(workDir, os.ModePerm)
-
-	targetDir := path.Join(c.Path, "rootfs")
-
-	os.MkdirAll(targetDir, os.ModePerm)
-	os.MkdirAll(workDir, os.ModePerm)
-
-	c.Mounts = append(c.Mounts, targetDir)
-
-	options := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
-
-	c.Logger.Verbose("Mounting overlay rootfs: mount -t overlay overlay %s %s", targetDir, options)
-
-	return syscall.Mount("overlay", targetDir, "overlay", 0, options)
-}
-
-func mountTmpfs(c *Container) (string, error) {
-	targetDir := path.Join(c.Path, "tmpfs")
-	os.MkdirAll(targetDir, os.ModePerm)
-	err := syscall.Mount("tmpfs", targetDir, "tmpfs", 0, "")
-	if err != nil {
-		return targetDir, err
-	}
-	c.Mounts = append(c.Mounts, targetDir)
-
-	err = os.MkdirAll(path.Join(targetDir, "fs"), os.ModePerm)
-	return targetDir, err
-}
-
 func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	container := &Container{
 		Name: name,
 		Path: path.Join(LocateSetup(), "containers", name),
-		Bases: []string{"base"},
 		Logger: NewLogger(name),
 	}
 
+	container.Overlay = &Overlay{
+		Layers: []*OverlayEntry{
+			CreateBaseFsEntry("base"),
+		},
+		Path: path.Join(container.Path, "rootfs"),
+		Logger: container.Logger,
+	}
+
 	if workspace != nil {
-		container.UpperLayer = path.Join(workspace.Path)
+		container.Overlay.OverlayLayer = workspace.CreateOverlayEntry()
 	} else {
-		upl, err := mountTmpfs(container)
+		overlayLayer, err := CreateTmpFsEntry(path.Join(container.Path, "tmpfs")) 
+		container.Overlay.OverlayLayer = overlayLayer
 		if err != nil {
-			return container, err
+			return container, err	
 		}
-		container.UpperLayer = upl
 	}
 
 	os.MkdirAll(container.Path, os.ModePerm)
 	os.MkdirAll(path.Join(container.Path, "shared"), os.ModePerm)
 
-	err := mountOverlayRootfs(container)
+	err := container.Overlay.Mount()
 	if err != nil {
 		// destroyContainer(container)
 		return container, err
@@ -136,16 +95,8 @@ func (container *Container) AddPluginCheckError(plugin *ContainerPlugin, err err
 func (container *Container) Destroy() {
 	container.Logger.Info("Destroying container: %s", container.Name)
 
-	for i := 0; i < 3; i++ {
-		for _, mount := range container.Mounts {
-			syscall.Unmount(mount, 0)
-		}
-
-		time.Sleep(time.Second)
-	}
-
+	container.Overlay.Destroy()
 	os.RemoveAll(container.Path)
-	os.Remove(path.Join(container.UpperLayer, ".overlay_work"))
 }
 
 func (container *Container) GetLauncher() (*exec.Cmd, error) {
