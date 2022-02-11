@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"os/exec"
+	"io/ioutil"
+	"encoding/xml"
 	"path"
 )
 
@@ -73,4 +75,38 @@ func BuildCloversimLayer() error {
 		HostLogger.Error("Build failed, %s", err)
 	}
 	return err
+}
+
+type CatkinPackageVersion struct {
+	Version string `xml:"version"`
+}
+
+func getXMLCatkinPackageVersion(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	byteValue, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+	var simVersion CatkinPackageVersion
+	xml.Unmarshal(byteValue, &simVersion)
+	return simVersion.Version, nil
+}
+
+func ShouldRebuildCloversimLayer() bool {
+	simVersion, err := getXMLCatkinPackageVersion(path.Join(LocateSetup(), "sim", "cloversim",  "package.xml"))
+	if err != nil {
+		return true
+	}
+
+	layerVersion, err := getXMLCatkinPackageVersion(path.Join(LocateSetup(), "base_fs", "cloversim", "home/clover/catkin_ws/src", "cloversim", "package.xml"))
+	if err != nil {
+		return true
+	}
+	HostLogger.Verbose("Cloversim version: %s, layer version: %s", simVersion, layerVersion)
+	return simVersion != layerVersion
 }

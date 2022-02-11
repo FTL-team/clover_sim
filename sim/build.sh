@@ -7,3 +7,4 @@ source /etc/profile
 source ~/.bashrc
 cd /home/clover/catkin_ws/
 catkin_make cloversim
+history -c
