@@ -42,12 +42,14 @@ func Prepare() error {
 	return nil
 }
 
-func BuildCloversimLayer() error {
+func BuildCloversimLayer(buildFast bool) error {
 	HostLogger.Info("Building cloversim layer, this may take a while...")
 
 	layerPath := path.Join(LocateSetup(), "base_fs", "cloversim")
 	buildContainerPath := path.Join(LocateSetup(), "containers", "__build_cloversim")
-	os.RemoveAll(layerPath)
+	if !buildFast {
+		os.RemoveAll(layerPath)
+	}
 	os.MkdirAll(layerPath, os.ModePerm)
 
 	overlay := &Overlay{
