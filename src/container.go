@@ -43,6 +43,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	container.Overlay = &Overlay{
 		Layers: []*OverlayEntry{
 			CreateBaseFsEntry("base"),
+			CreateBaseFsEntry("cloversim"),
 		},
 		Path: path.Join(container.Path, "rootfs"),
 		Logger: container.Logger,
