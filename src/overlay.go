@@ -40,6 +40,7 @@ func (ov *Overlay) Mount() error {
 	workDir := ov.OverlayLayer.OverlayWork
 	targetDir := ov.Path
 	
+	os.RemoveAll(workDir)
 	os.Mkdir(workDir, os.ModePerm)
 	os.MkdirAll(targetDir, os.ModePerm)
 
