@@ -170,6 +170,19 @@ func main() {
 						NoStart: c.Bool("no-start"),
 					})
 				},
+			}, {
+				Name: "rebuild_cloversim",
+				Hidden: true,
+				HideHelp: true,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name: "fast",
+					},
+				},
+				
+				Action: func(c *cli.Context) error {
+					return BuildCloversimLayer(c.Bool("fast"))
+				},
 			},
 		},
 	}

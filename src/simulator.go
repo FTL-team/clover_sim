@@ -98,7 +98,7 @@ func LaunchMachine(options MachineOptions, sim *Simulator) error {
 
 func LaunchSimulator(options SimulatorOptions) error {
 	if ShouldRebuildCloversimLayer() {
-		if err := BuildCloversimLayer(); err != nil {
+		if err := BuildCloversimLayer(false); err != nil {
 			HostLogger.Error("Failed to build cloversim layer: %s", err)
 			return err
 		}
