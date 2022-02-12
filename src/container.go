@@ -1,16 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"syscall"
+	"sync"
 	"time"
 )
 
@@ -18,121 +14,114 @@ type Container struct {
 	Name string
 	Path string
 
-	Bases  []string
-	UpperLayer string
-	Mounts []string
+	Overlay *Overlay
 
 	IPs []string
 
 	Logger *Logger
+
+	Plugins []*ContainerPlugin
 }
 
-func mountOverlayRootfs(c *Container) error {
-	lowerDir := ""
-	for i, base := range c.Bases {
-		if i != 0 {
-			lowerDir += ":"
-		}
-		base_real, err := filepath.EvalSymlinks(path.Join(LocateSetup(), "base_fs", base))
-		if err != nil {
-			return err
-		}
-		lowerDir += base_real
-	}
+type ContainerPlugin struct {
+	Name string
 
-	upperDir := path.Join(c.UpperLayer, "fs")
-	workDir := path.Join(c.UpperLayer, ".overlay_work")
-	os.Mkdir(workDir, os.ModePerm)
-
-	targetDir := path.Join(c.Path, "rootfs")
-
-	os.MkdirAll(targetDir, os.ModePerm)
-	os.MkdirAll(workDir, os.ModePerm)
-
-	c.Mounts = append(c.Mounts, targetDir)
-
-	options := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
-
-	c.Logger.Verbose("Mounting overlay rootfs: mount -t overlay overlay %s %s", targetDir, options)
-
-	return syscall.Mount("overlay", targetDir, "overlay", 0, options)
-}
-
-func mountTmpfs(c *Container) (string, error) {
-	targetDir := path.Join(c.Path, "tmpfs")
-	os.MkdirAll(targetDir, os.ModePerm)
-	err := syscall.Mount("tmpfs", targetDir, "tmpfs", 0, "")
-	if err != nil {
-		return targetDir, err
-	}
-	c.Mounts = append(c.Mounts, targetDir)
-
-	err = os.MkdirAll(path.Join(targetDir, "fs"), os.ModePerm)
-	return targetDir, err
+	MountsRO []string
+	MountsRW []string
+	LauncherArguments []string
+	
+	RunOnBoot func(*Container) error
 }
 
 func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 	container := &Container{
 		Name: name,
 		Path: path.Join(LocateSetup(), "containers", name),
-		Bases: []string{"base"},
 		Logger: NewLogger(name),
 	}
 
+	container.Overlay = &Overlay{
+		Layers: []*OverlayEntry{
+			CreateBaseFsEntry("base"),
+			CreateBaseFsEntry("cloversim"),
+		},
+		Path: path.Join(container.Path, "rootfs"),
+		Logger: container.Logger,
+	}
+
 	if workspace != nil {
-		container.UpperLayer = path.Join(workspace.Path)
+		container.Overlay.OverlayLayer = workspace.CreateOverlayEntry()
 	} else {
-		upl, err := mountTmpfs(container)
+		overlayLayer, err := CreateTmpFsEntry(path.Join(container.Path, "tmpfs")) 
+		container.Overlay.OverlayLayer = overlayLayer
 		if err != nil {
-			return container, err
+			return container, err	
 		}
-		container.UpperLayer = upl
 	}
 
 	os.MkdirAll(container.Path, os.ModePerm)
+	os.MkdirAll(path.Join(container.Path, "shared"), os.ModePerm)
 
-	err := mountOverlayRootfs(container)
+	err := container.Overlay.Mount()
 	if err != nil {
 		// destroyContainer(container)
 		return container, err
 	}
 
-	ioutil.WriteFile(path.Join(container.Path, "hostname"), []byte(container.Name + "\n"), 0644)
+	ioutil.WriteFile(container.ContainerFile("hostname"), []byte(container.Name + "\n"), 0644)
 
 	return container, nil
 }
 
+func (container *Container) AddPlugin(plugin *ContainerPlugin) {
+	container.Plugins = append(container.Plugins, plugin)
+}
+
+func (container *Container) AddPluginCheckError(plugin *ContainerPlugin, err error) error {
+	if err != nil {
+		if plugin != nil {
+			container.Logger.Error("Plugin %s failed: %s", plugin.Name, err)
+		}else{
+			container.Logger.Error("Plugin error: %s", err)
+		}
+		return err
+	}else{
+		container.Plugins = append(container.Plugins, plugin)
+		return nil
+	}
+}
+
+
+
 func (container *Container) Destroy() {
 	container.Logger.Info("Destroying container: %s", container.Name)
 
-	for i := 0; i < 3; i++ {
-		for _, mount := range container.Mounts {
-			syscall.Unmount(mount, 0)
-		}
-
-		time.Sleep(time.Second)
-	}
-
+	container.Overlay.Destroy()
 	os.RemoveAll(container.Path)
-	os.Remove(path.Join(container.UpperLayer, ".overlay_work"))
 }
 
-func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
+func (container *Container) GetLauncher() (*exec.Cmd, error) {
 	nspawnArgs := []string{}
 
 	nspawnArgs = append(nspawnArgs, "--machine", container.Name)
 	nspawnArgs = append(nspawnArgs, "--directory", ".")
 
-	readonlyMounts := []string{"/tmp/.virgl_test"}
-	readonlyMounts = append(readonlyMounts, fmt.Sprintf("/tmp/.X11-unix/X%s:/tmp/.X11-unix/X0", os.Getenv("DISPLAY")[1:]))
-	readonlyMounts = append(readonlyMounts,  path.Join(LocateSetup(), "containers", "hosts") + ":/etc/hosts")
-	readonlyMounts = append(readonlyMounts, path.Join(container.Path, "hostname") + ":/etc/hostname")
+	readonlyMounts := []string{}
+	readwriteMounts := []string{}
+
+	for _, plugin := range container.Plugins {
+		readonlyMounts = append(readonlyMounts, plugin.MountsRO...)
+		readwriteMounts = append(readwriteMounts, plugin.MountsRW...)
+		nspawnArgs = append(nspawnArgs, plugin.LauncherArguments...)
+	}
 
 	for _, mount := range readonlyMounts {
 		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind-ro=%s", mount))
 	}
 
-	nspawnArgs = append(nspawnArgs, "--network-bridge="+net.BridgeName)
+	for _, mount := range readwriteMounts {
+		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind=%s", mount))
+	}
 
 	nspawnArgs = append(nspawnArgs, "--boot")
 	nspawnArgs = append(nspawnArgs, "clover_sim")
@@ -143,6 +132,46 @@ func (container *Container) GetLauncher(net *NetworkConfig) (*exec.Cmd, error) {
 	cmd.Dir = path.Join(container.Path, "rootfs")
 
 	return cmd, nil
+}
+
+func (container *Container) Run(stopSignal *sync.Cond,) error {
+
+	container.Logger.Info("Launching container: %s ", container.Name)
+ 
+	cmd, err := container.GetLauncher()
+	if err != nil {
+		container.Logger.Error("Failed to launch container: %s", err)
+		return err
+	}
+
+	Running := true
+
+	go func() {
+		stopSignal.L.Lock()
+		defer stopSignal.L.Unlock()
+		stopSignal.Wait()
+		if Running {
+			container.Logger.Info("Stopping container %s", container.Name)
+			container.Poweroff()
+		}
+	}()
+
+	go func() {
+		time.Sleep(800 * time.Millisecond)
+		for _, plugin := range container.Plugins {
+			go plugin.RunOnBoot(container)
+		}
+	}()
+
+	err = cmd.Run()
+	Running = false
+	if err != nil {
+		container.Logger.Error("Container failed: %s", err)
+	} else {
+		container.Logger.Info("Container %s exited", container.Name)
+	}
+
+	return err
 }
 
 type ExecContainerOptions struct {
@@ -183,52 +212,23 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 	return exec.Command("systemd-run", runOptions...)
 }
 
-func (container *Container) Poweroff() error {
-	return exec.Command("systemctl", "--machine=" + container.Name, "poweroff").Run()
+func (container *Container) Systemctl(options ...string) error {
+	return exec.Command("systemctl", append([]string{"--machine="+container.Name}, options...)...).Run()
 }
 
-func (container *Container) SendXauth() error {
-	xauthCmd := exec.Command("xauth", "nextract", "-", os.Getenv("DISPLAY"))
-	out, err := xauthCmd.Output()
-	if err != nil {
-		return err
+func (container *Container) Poweroff() error {
+	return container.Systemctl("poweroff")
+}
+
+func (container *Container) ContainerFile(name string) string {
+	return path.Join(container.Path, name)
+}
+
+var createdShared = false
+func SharedContainerFile(name string) string {
+	if !createdShared {
+		os.MkdirAll(path.Join(LocateSetup(), "containers", "_shared"), os.ModePerm)
+		createdShared = true
 	}
-	l := strings.Split(string(out), "\n")
-	for i, _ := range l {
-
-		parts := strings.Fields(string(l[i]))
-		if len(parts) > 0 {
-			parts[0] = "ffff"
-
-			dd, err := strconv.Atoi(parts[len(parts) - 5])
-			if err != nil {
-				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
-				panic(err)
-			}
-
-
-			di, err := strconv.Atoi(os.Getenv("DISPLAY")[1:])
-			if err != nil {
-				fmt.Printf("ERROR, xauth, report this to cloversim developers: %s\n", out)
-				panic(err)
-			}
-
-			parts[len(parts) - 5] = strconv.Itoa(dd - di)
-		}
-		l[i] = strings.Join(parts, " ")
-	}
-
-	out = []byte(strings.Join(l, "\n"))
-
-	containerCmd := container.Exec(ExecContainerOptions{
-		Command: "xauth nmerge - ",
-		Description: "Setup xauth",
-		Uid: 1000,
-		ServiceOptions: map[string]string{
-			"After": "multi-user.target",
-			"Wants": "multi-user.target",
-		},
-	})
-	containerCmd.Stdin = bytes.NewReader(out)
-	return containerCmd.Run()
+	return 	path.Join(LocateSetup(), "containers", "_shared", name)
 }

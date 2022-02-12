@@ -49,7 +49,7 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "create")
-								return fmt.Errorf("No name specified")
+								return fmt.Errorf("no name specified")
 							}
 							_, err := CreateWorkspace(c.Args().First())
 							return err
@@ -61,7 +61,7 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "remove")
-								return fmt.Errorf("No name specified")
+								return fmt.Errorf("no name specified")
 							}
 							workspace, err := LoadWorkspace(c.Args().First())
 							
@@ -97,7 +97,7 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "remove")
-								return fmt.Errorf("No name specified")
+								return fmt.Errorf("no name specified")
 							}
 							workspace, err := LoadWorkspace(c.Args().First())
 							if err != nil {
@@ -113,9 +113,27 @@ func main() {
 						Action: func(c *cli.Context) error {
 							if c.Args().Len() != 1 {
 								cli.ShowCommandHelp(c, "import")
-								return fmt.Errorf("No path to file specified")
+								return fmt.Errorf("no path to file specified")
 							}
 							return ImportWorkspace(c.Args().First())
+						},
+					},
+
+					{
+						Name:      "duplicate",
+						Usage:     "Create copy of workspace",
+						ArgsUsage: "SOURCE_WORKSPACE DUPLICATED_WORKSPACE_NAME",
+						Action: func(c *cli.Context) error {
+							if c.Args().Len() != 2 {
+								cli.ShowCommandHelp(c, "duplicate")
+
+								return fmt.Errorf("no source workspace or duplicate workspace name not specified")
+							}
+							workspace, err := LoadWorkspace(c.Args().First())
+							if err != nil {
+								return err
+							}
+							return workspace.Duplicate(c.Args().Get(1))
 						},
 					},
 				},
@@ -129,10 +147,17 @@ func main() {
 				Name: "launch",
 				Usage: "Launch simulator",
 				ArgsUsage: "WORKSPACE_NAME",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name: "no-start",
+						Usage: "disable automatic simulator(gazebo, px4, clover, etc.) start",
+					},
+				},
+				
 				Action: func(c *cli.Context) error {
 					if c.Args().Len() != 1 {
 						cli.ShowCommandHelp(c, "remove")
-						return fmt.Errorf("No workspace name specified")
+						return fmt.Errorf("no workspace name specified")
 					}
 					workspace, err := LoadWorkspace(c.Args().First())
 					if err != nil {
@@ -140,7 +165,23 @@ func main() {
 						return err
 					}
 
-					return LaunchSimulator(workspace)
+					return LaunchSimulator(SimulatorOptions{
+						Workspace: workspace,
+						NoStart: c.Bool("no-start"),
+					})
+				},
+			}, {
+				Name: "rebuild_cloversim",
+				Hidden: true,
+				HideHelp: true,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name: "fast",
+					},
+				},
+				
+				Action: func(c *cli.Context) error {
+					return BuildCloversimLayer(c.Bool("fast"))
 				},
 			},
 		},

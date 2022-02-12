@@ -8,8 +8,6 @@ import (
 	"github.com/FTL-team/clover_sim/src/color"
 )
 
-var statusStrings []string
-
 type LogLevel int
 var logLevel LogLevel
 const (
@@ -19,6 +17,8 @@ const (
 )
 
 var logMutex sync.Mutex
+
+var PromptString string
 
 type Logger struct {
 	Machine string
@@ -75,7 +75,9 @@ func (l *Logger) Printf(prefix string, format string, v ...interface{}) {
 
 func (l *Logger) Print(prefix string, s string) {
 	logMutex.Lock()
-	fmt.Printf("[ %s ][%s]: %s\n", prefix, l.MachinePrefix, s)
+	promptClean()
+	fmt.Printf("[ %s ][%s]: %s\n\r", prefix, l.MachinePrefix, s)
+	promptShow()
 	logMutex.Unlock()
 }
 
@@ -87,10 +89,31 @@ func (l *Logger) Eprintf(prefix string, format string, v ...interface{}) {
 
 func (l *Logger) Eprint(prefix string, s string) {
 	logMutex.Lock()
-	fmt.Fprintf(os.Stderr, "[ %s ][%s]: %s\n", prefix, l.MachinePrefix, s)
+	promptClean()
+	fmt.Fprintf(os.Stderr, "[ %s ][%s]: %s\n\r", prefix, l.MachinePrefix, s)
+	promptShow()
 	logMutex.Unlock()
 }
 
+func promptClean() {
+	fmt.Print("\x1b[1000D\x1b[2K")
+}
+
+func promptShow() {
+	fmt.Print(PromptString)
+}
+
+func SetPrompt(prompt string) {
+	if prompt == PromptString {
+		return
+	}
+
+	logMutex.Lock()
+	promptClean()
+	PromptString = prompt
+	promptShow()
+	logMutex.Unlock()
+}
 
 func SetLogLevel(level LogLevel) {
 	logLevel = level
