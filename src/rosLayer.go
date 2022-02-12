@@ -70,12 +70,14 @@ func (rl *RosLayer) RebuildLayer(fastBuild bool) error {
 	buildCommand += "&& source /etc/profile && source ~/.bashrc"
 	buildCommand += fmt.Sprintf("&& cd /home/clover/catkin_ws/ && catkin_make %s", rl.RosPackageName)
 	buildCommand += "&& history -c"
-	HostLogger.Info(buildCommand)
+
 	cmd := exec.Command("systemd-nspawn", "-u", "clover", "--bind-ro", binder, "-D", overlay.Path, "/bin/bash", "-i", "-c", buildCommand)
 
-	err := cmd.Run()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		HostLogger.Error("Build failed, %s", err)
+		HostLogger.Info("Build output: %s", string(out))
+		os.RemoveAll(path.Join(rl.LayerEntry.Path + pkgLayerPath, "package.xml"))
 	}
 	return err
 }

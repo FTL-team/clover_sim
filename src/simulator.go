@@ -6,6 +6,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"path"
 )
 
 type MachineCommand struct {
@@ -101,6 +102,16 @@ func LaunchSimulator(options SimulatorOptions) error {
 	
 	if err := cloversimLayer.RebuildIfNeeded(); err != nil {
 		HostLogger.Error("Failed to build cloversim layer: %s", err)
+		return err
+	}
+
+	taskLayer, err := GetTaskRosLayer(path.Join(LocateSetup(), "tasks", "base_task"))
+	if err != nil {
+		return err
+	}
+
+	if err := taskLayer.RebuildIfNeeded(); err != nil {
+		HostLogger.Error("Failed to build task layer: %s", err)
 		return err
 	}
 	
