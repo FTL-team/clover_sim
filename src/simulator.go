@@ -97,11 +97,11 @@ func LaunchMachine(options MachineOptions, sim *Simulator) error {
 }
 
 func LaunchSimulator(options SimulatorOptions) error {
-	if ShouldRebuildCloversimLayer() {
-		if err := BuildCloversimLayer(false); err != nil {
-			HostLogger.Error("Failed to build cloversim layer: %s", err)
-			return err
-		}
+	cloversimLayer := GetCloversimLayer()
+	
+	if err := cloversimLayer.RebuildIfNeeded(); err != nil {
+		HostLogger.Error("Failed to build cloversim layer: %s", err)
+		return err
 	}
 	
 	go StartVirgl()

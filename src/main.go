@@ -181,7 +181,9 @@ func main() {
 				},
 				
 				Action: func(c *cli.Context) error {
-					return BuildCloversimLayer(c.Bool("fast"))
+					cloversimLayer := GetCloversimLayer()
+		
+					return cloversimLayer.RebuildLayer(c.Bool("fast"))
 				},
 			},
 		},
