@@ -1,69 +1,65 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
+	"path"
 	"sync"
 	"syscall"
 	"time"
-	"path"
 )
 
-type MachineCommand struct {
-	Command string
-}
-
-type SimulatorCommand struct {
-	Command string
-	MachineCommand MachineCommand
-}
-
-type MachineOptions struct {
+type SimulatorContainerOptions struct {
 	Name      string
 	Workspace *Workspace
-	Network   *NetworkConfig
 	DesiredIP int
 	Mode      string
-
-	Commander chan MachineCommand
-}
-
-type Simulator struct {
-	net                   *NetworkConfig
-	stopSignal            *sync.Cond
-	startSimulatorAtStart bool
 }
 
 type SimulatorOptions struct {
-	Workspace *Workspace
-	NoStart   bool
+	Workspace    *Workspace
+	StartAtReady bool
 }
 
-func LaunchContainerSim(container *Container, mode string) {
-	container.Logger.Info("Launching container simulator node: %s", mode)
-
-	cmd := container.Exec(ExecContainerOptions{
-		Command:     ". /etc/profile; . ~/.bashrc; roslaunch --wait cloversim " + mode + ".launch",
-		Description: "Start simulator",
-		Uid:         1000,
-		Gid:         1000,
-		ServiceOptions: map[string]string{
-			"After":           "roscore.target",
-			"Wants":           "roscore.target",
-			"EnvironmentFile": "/etc/environment",
-		},
-		Unit: "cloversim.service",
-	})
-	cmd.StdinPipe()
-	// cmd.Stderr = os.Stderr
-	// cmd.Stdout = os.Stdout
-	go func() {
-		cmd.Run()
-		container.Logger.Info("Container simulator node exited")
-	}()
+type SimulatorContainers struct {
+	Containers map[string]*Container
+	ExitWait   sync.WaitGroup
+	ReadyWait  sync.WaitGroup
+	mutex      sync.RWMutex
 }
 
-func LaunchMachine(options MachineOptions, sim *Simulator) error {
+type Simulator struct {
+	Network       *NetworkConfig
+	Context       context.Context
+	ContextCancel context.CancelFunc
+	Containers    SimulatorContainers
+}
+
+func (sc *SimulatorContainers) Get(name string) *Container {
+	sc.mutex.RLock()
+	defer sc.mutex.RUnlock()
+	return sc.Containers[name]
+}
+
+func (sc *SimulatorContainers) Add(container *Container) {
+	sc.mutex.Lock()
+	defer sc.mutex.Unlock()
+	sc.Containers[container.Name] = container
+}
+
+func (sc *SimulatorContainers) GetAllContainers() []*Container {
+	sc.mutex.RLock()
+	defer sc.mutex.RUnlock()
+
+	containers := make([]*Container, 0, len(sc.Containers))
+	for _, container := range sc.Containers {
+		containers = append(containers, container)
+	}
+	return containers
+}
+
+func (sim *Simulator) LaunchContainer(options SimulatorContainerOptions) error {
 	container, err := CreateContainer(options.Name, options.Workspace)
 	if err != nil {
 		if container != nil {
@@ -76,45 +72,44 @@ func LaunchMachine(options MachineOptions, sim *Simulator) error {
 	}
 	defer container.Destroy()
 
-	container.AddPluginCheckError(sim.net.GetNetworkPlugin(container, options.DesiredIP))
+	container.AddPluginCheckError(sim.Network.GetNetworkPlugin(container, options.DesiredIP))
 	container.AddPluginCheckError(NewX11Plugin())
-	container.AddPluginCheckError(NewSimulatorServicePlugin(container, options.Mode, sim.startSimulatorAtStart))
+	container.AddPluginCheckError(NewSimulatorServicePlugin(container, options.Mode))
+	container.AddPluginCheckError(NewReadyPlugin(&sim.Containers.ReadyWait))
 
-	go func() {
-		for {
-			command := <-options.Commander
-			switch command.Command {
-			case "simulator_start":
-				container.Logger.Info("Starting simulator")
-				container.Systemctl("start", "cloversim.service")
-			case "simulator_stop":
-				container.Logger.Info("Stopping simulator")
-				container.Systemctl("stop", "cloversim.service")
-			}
-		}
-	}()
-
-	return container.Run(sim.stopSignal)
+	sim.Containers.Add(container)
+	if container == nil {
+		HostLogger.Error("Failed to add container: %s", err)
+		return err
+	}
+	HostLogger.Info("Container created: %s", container.Name)
+	return container.Run(sim.Context)
 }
 
 func LaunchSimulator(options SimulatorOptions) error {
-	cloversimLayer := GetCloversimLayer()
+	context, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	
-	if err := cloversimLayer.RebuildIfNeeded(); err != nil {
-		HostLogger.Error("Failed to build cloversim layer: %s", err)
-		return err
-	}
+	{
+		cloversimLayer := GetCloversimLayer()
+		
+		if err := cloversimLayer.RebuildIfNeeded(); err != nil {
+			HostLogger.Error("Failed to build cloversim layer: %s", err)
+			return err
+		}
 
-	taskLayer, err := GetTaskRosLayer(path.Join(LocateSetup(), "tasks", "base_task"))
-	if err != nil {
-		return err
-	}
+		taskLayer, err := GetTaskRosLayer(path.Join(LocateSetup(), "tasks", "base_task"))
+		if err != nil {
+			return err
+		}
 
-	if err := taskLayer.RebuildIfNeeded(); err != nil {
-		HostLogger.Error("Failed to build task layer: %s", err)
-		return err
+		if err := taskLayer.RebuildIfNeeded(); err != nil {
+			HostLogger.Error("Failed to build task layer: %s", err)
+			return err
+		}
 	}
 	
+
 	go StartVirgl()
 	time.Sleep(time.Second)
 
@@ -125,69 +120,81 @@ func LaunchSimulator(options SimulatorOptions) error {
 		return err
 	}
 
-	simulator := &Simulator{
-		net:                   net,
-		stopSignal:            sync.NewCond(&sync.Mutex{}),
-		startSimulatorAtStart: !options.NoStart,
+	sim := &Simulator{
+		Network:       net,
+		Context:       context,
+		ContextCancel: cancel,
+		Containers: SimulatorContainers{
+			Containers: make(map[string]*Container),
+			ExitWait:   sync.WaitGroup{},
+		},
 	}
 
-	machines := []MachineOptions{
+	cotainersToLaunch := []SimulatorContainerOptions{
 		{
 			Name:      "cloversim",
 			Workspace: nil,
 			DesiredIP: 2,
 			Mode:      "simulator",
-			Commander: make(chan MachineCommand),
 		}, {
 			Name:      "clover0",
 			Workspace: options.Workspace,
 			DesiredIP: 0,
 			Mode:      "copter",
-			Commander: make(chan MachineCommand),
 		},
 	}
 
-	wg := sync.WaitGroup{}
-
-	for _, machine := range machines {
-		wg.Add(1)
+	for _, containerOptions := range cotainersToLaunch {
+		sim.Containers.ExitWait.Add(1)
 		go func() {
-			err = LaunchMachine(machine, simulator)
-			wg.Done()
+			err = sim.LaunchContainer(containerOptions)
+			sim.Containers.ExitWait.Done()
 		}()
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / 2)
 	}
-	
-	c := make(chan os.Signal, 1)
-	promptExit := make(chan bool, 1)
-	simulatorCommands := make(chan SimulatorCommand, 1)
 
-	go func() {
-		for {
-			cmd := <-simulatorCommands
-			if cmd.Command == "machine" {
-				machineCommand := cmd.MachineCommand
-				for _, machine := range machines {
-					machine.Commander <- machineCommand
-				}
+	{
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			for range c {
+				HostLogger.Info("Stopping simulator")
+				sim.ContextCancel()
 			}
-		}
-	}()
+		}()
+	}
 
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		for range c {
-			HostLogger.Info("Stopping simulator")
-			promptExit <- true
-			simulator.stopSignal.Broadcast()
-		}
-	}()
+	if options.StartAtReady {
+		go sim.StartSimulator()
+	}
 
-	go SimulatorController(c, promptExit, simulatorCommands)
+	go SimulatorController(sim)
 
-	wg.Wait()
-	promptExit <- true
+	sim.Containers.ExitWait.Wait()
 	HostLogger.Info("All containers stopped")
 
 	return nil
+}
+
+func (sim *Simulator) AllSystemctl(options ...string) {
+	for _, container := range sim.Containers.GetAllContainers() {
+		container.Systemctl(options...)
+	}
+}
+
+func (sim *Simulator) StartSimulator() {
+	sim.Containers.ReadyWait.Wait()
+	sim.AllSystemctl("start", "cloversim")
+}
+
+func (sim *Simulator) StopSimulator() {
+	sim.Containers.ReadyWait.Wait()
+	sim.AllSystemctl("stop", "cloversim")
+}
+
+func (sim *Simulator) RestartSimulator() {
+	sim.Containers.ReadyWait.Wait()
+	sim.AllSystemctl("stop", "cloversim")
+	time.Sleep(time.Second)
+	sim.AllSystemctl("start", "cloversim")
 }

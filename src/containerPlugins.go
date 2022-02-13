@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func NewX11Plugin() (*ContainerPlugin, error) {
@@ -73,7 +74,7 @@ func NewX11Plugin() (*ContainerPlugin, error) {
 	return plugin, nil
 }
 
-func NewSimulatorServicePlugin(container *Container, mode string, launch bool) (*ContainerPlugin, error) {
+func NewSimulatorServicePlugin(container *Container, mode string) (*ContainerPlugin, error) {
 
 	plugin := &ContainerPlugin{
 		Name: "cloversimService",
@@ -102,11 +103,29 @@ ExecStart="/bin/bash" "-ic" ". /etc/profile; . ~/.bashrc; mkfifo /tmp/cloversim_
 		servicePath + ":/etc/systemd/system/cloversim.service",
 	}
 
+	return plugin, nil
+}
+
+
+func NewReadyPlugin(readyWait *sync.WaitGroup) (*ContainerPlugin, error) {
+	readyWait.Add(1)
+
+	plugin := &ContainerPlugin{
+		Name: "ready",
+	}
+
 	plugin.RunOnBoot = func(container *Container) error {
-		if launch {
-			container.Logger.Info("Starting simulator")
-			return container.Systemctl("start", "cloversim.service")
-		}
+		containerCmd := container.Exec(ExecContainerOptions{
+			Command:     "echo ready",
+			Description: "Notfy ready",
+			Uid:         1000,
+			ServiceOptions: map[string]string{
+				"After": "multi-user.target",
+				"Wants": "multi-user.target",
+			},
+		})
+		containerCmd.Run()
+		readyWait.Done()
 		return nil
 	}
 

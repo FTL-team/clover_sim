@@ -167,7 +167,7 @@ func main() {
 
 					return LaunchSimulator(SimulatorOptions{
 						Workspace: workspace,
-						NoStart: c.Bool("no-start"),
+						StartAtReady: !c.Bool("no-start"),
 					})
 				},
 			}, {
