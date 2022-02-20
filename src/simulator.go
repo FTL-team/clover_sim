@@ -34,6 +34,7 @@ type Simulator struct {
 	Context       context.Context
 	ContextCancel context.CancelFunc
 	Containers    SimulatorContainers
+	TaskPkgName   string
 }
 
 func (sc *SimulatorContainers) Get(name string) *Container {
@@ -75,7 +76,7 @@ func (sim *Simulator) LaunchContainer(options SimulatorContainerOptions) error {
 	container.AddPluginCheckError(sim.Network.GetNetworkPlugin(container, options.DesiredIP))
 	container.AddPluginCheckError(NewX11Plugin())
 	container.AddPluginCheckError(NewSimulatorServicePlugin(container, options.Mode))
-	container.AddPluginCheckError(NewReadyPlugin(&sim.Containers.ReadyWait))
+	container.AddPluginCheckError(NewReadyPlugin(sim.TaskPkgName, &sim.Containers.ReadyWait))
 
 	sim.Containers.Add(container)
 	if container == nil {
@@ -88,11 +89,21 @@ func (sim *Simulator) LaunchContainer(options SimulatorContainerOptions) error {
 
 func LaunchSimulator(options SimulatorOptions) error {
 	context, cancel := context.WithCancel(context.Background())
+
+	sim := &Simulator{
+		Context:       context,
+		ContextCancel: cancel,
+		Containers: SimulatorContainers{
+			Containers: make(map[string]*Container),
+			ExitWait:   sync.WaitGroup{},
+		},
+	}
+
 	defer cancel()
-	
+
 	{
 		cloversimLayer := GetCloversimLayer()
-		
+
 		if err := cloversimLayer.RebuildIfNeeded(); err != nil {
 			HostLogger.Error("Failed to build cloversim layer: %s", err)
 			return err
@@ -107,8 +118,8 @@ func LaunchSimulator(options SimulatorOptions) error {
 			HostLogger.Error("Failed to build task layer: %s", err)
 			return err
 		}
+		sim.TaskPkgName = taskLayer.RosPackageName
 	}
-	
 
 	go StartVirgl()
 	time.Sleep(time.Second)
@@ -120,15 +131,7 @@ func LaunchSimulator(options SimulatorOptions) error {
 		return err
 	}
 
-	sim := &Simulator{
-		Network:       net,
-		Context:       context,
-		ContextCancel: cancel,
-		Containers: SimulatorContainers{
-			Containers: make(map[string]*Container),
-			ExitWait:   sync.WaitGroup{},
-		},
-	}
+	sim.Network = net
 
 	cotainersToLaunch := []SimulatorContainerOptions{
 		{
