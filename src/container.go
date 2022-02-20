@@ -213,6 +213,20 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 	return exec.Command("systemd-run", runOptions...)
 }
 
+func (container *Container) RosExec(command string, description string) *exec.Cmd {
+	rosLoadPrefix := ". /etc/profile; . ~/.bashrc;"
+	container.Logger.Verbose("RosExec: %s", command)
+	return container.Exec(ExecContainerOptions{
+		Command:        rosLoadPrefix + command,
+		Description: 		description,
+		Uid:         1000,
+		ServiceOptions: map[string]string{
+			"After": "roscore.target",
+			"Wants": "roscore.target",
+		},
+	})
+}
+
 func (container *Container) Systemctl(options ...string) error {
 	return exec.Command("systemctl", append([]string{"--machine="+container.Name}, options...)...).Run()
 }
