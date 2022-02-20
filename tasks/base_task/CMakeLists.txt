@@ -9,6 +9,7 @@ project(base_task)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   rospy
+  gazebo_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -103,8 +104,8 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES cloversim
-#  CATKIN_DEPENDS rospy
 #  DEPENDS system_lib
+CATKIN_DEPENDS gazebo_ros
 )
 
 ###########
@@ -159,7 +160,7 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/randomize.py
-  scripts/generate_map.py
+  scripts/generate_world.py
   scripts/checker.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
@@ -193,6 +194,8 @@ catkin_install_python(PROGRAMS
 # )
 
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY models DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY resources DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 #############
 ## Testing ##

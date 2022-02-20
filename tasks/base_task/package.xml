@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>base_task</name>
-  <version>0.0.0</version>
+  <version>0.0.1</version>
   <description>The cloversim base task</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
@@ -54,9 +54,13 @@
   <exec_depend>rospy</exec_depend>
 
 
+  <depend>gazebo_ros</depend>
+
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- Other tools can request additional information be placed here -->
-
+    <gazebo_ros gazebo_media_path="${prefix}"/>
+    <gazebo_ros gazebo_model_path="${prefix}/models"/>
+    <gazebo_ros gazebo_resource_path="${prefix}/resources"/>
   </export>
 </package>
