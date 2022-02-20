@@ -1,6 +1,10 @@
 {
   "files.watcherExclude": {
     "base_fs/**": true,
-    "containers/**": true,
-  }
+    "containers/**": true
+  },
+  "python.analysis.extraPaths": [
+    "./sim/cloversim/src",
+    "./base_fs/base/opt/ros/noetic/lib/python3/dist-packages"
+  ]
 }
