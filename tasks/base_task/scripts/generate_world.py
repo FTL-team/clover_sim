@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from cloversim.generation import World, Include, Box, ColorMaterial, ImageTextures
+from cloversim.generation import World, Include, Box, ColorMaterial, ImageTextures, Cylinder
 import cv2
 import numpy as np
 import qrcode
@@ -19,7 +19,8 @@ for i, color in zip(range(10), colors):
           size=(0.4, 0.4, 0.1),
           mass=1,
           pose=(i, -1, 0.05),
-          material=ColorMaterial(color)))
+          material=ColorMaterial(color),
+          static=True))
 
 world.add(
     Box(
@@ -55,6 +56,7 @@ for i, marker_status in enumerate(markers_status):
           pose=(-1, i * 2 + 1, 0.001),
           material=image_textures.materials[
               "marker_" + ("ok" if marker_status else "error")],
+          static=True
       ))
 
 world.add(
@@ -62,6 +64,18 @@ world.add(
         size=(1, 1, 0.001),
         pose=(-1, -1, 0.001),
         mass=0.1,
-        material=image_textures["qrcode"]))
+        material=image_textures["qrcode"],
+        static=True))
+
+world.add(
+    Cylinder("landing_pad",
+             radius=0.5,
+             length=0.3,
+             pose=(10, 10, 0.15),
+             material=(
+                 ColorMaterial((0.5, 0.5, 0.5)),
+                 ColorMaterial((1, 0.5, 0)),
+                 ColorMaterial((1, 1, 0)),
+)))
 
 world.save()
