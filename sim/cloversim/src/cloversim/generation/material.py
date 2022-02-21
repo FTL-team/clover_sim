@@ -47,3 +47,19 @@ class ColorMaterial:
       <emissive>{color_to_string(self.emissive)}</emissive>
     </material>
     """
+
+class OgreMaterial:
+  def __init__(self, script_uri, script_name):
+    self.script_uri = script_uri
+    self.script_name = script_name
+
+
+  def xml(self):
+    return f"""
+    <material>
+      <script>
+        <uri>{self.script_uri}</uri>
+        <name>{self.script_name}</name>
+      </script>
+    </material>
+    """
