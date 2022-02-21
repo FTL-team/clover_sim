@@ -36,7 +36,7 @@ class Include():
 
 class Model():
 
-  def __init__(self, name, pose=(0, 0, 0, 0, 0, 0), mass=10, material=None):
+  def __init__(self, name, pose=(0, 0, 0, 0, 0, 0), mass=10, material=None, static=False):
     validate_pose(pose)
     if type(mass) is not float and type(mass) is not int:
       raise ValueError("Mass must be int or float")
@@ -47,6 +47,7 @@ class Model():
     if type(material) is not tuple:
       material = (material, )
     self.material = material
+    self.static = static
 
   def get_inertia(self):
     raise NotImplementedError("Model inertia is not implemented")
@@ -61,7 +62,7 @@ class Model():
     return f"""
     <model name="{self.name}">
       <pose>{pose_to_string(self.pose)}</pose>
-      <static>false</static>
+      <static>{self.static}</static>
       <link name="link">
         <inertial>
           <mass>{self.mass}</mass>
@@ -69,6 +70,13 @@ class Model():
         </inertial>
         <collision name="collision">
           {self.get_geometry()}
+          <surface>
+            <contact>
+              <ode>
+                <min_depth>0.01</min_depth>
+              </ode>
+            </contact>
+          </surface>
         </collision>
         {self.create_visual_links()}
       </link>
@@ -83,13 +91,13 @@ class Box(Model):
                size=(1, 1, 1),
                pose=(0, 0, 0, 0, 0, 0),
                mass=10,
-               material=None):
+               material=None, static=False):
     if material is tuple and len(material) not in [3, 6]:
       raise ValueError(
           "Material must be single material or tuple of materials with length 3 or 6"
       )
 
-    super().__init__(name, pose, mass, material)
+    super().__init__(name, pose, mass, material, static)
 
     validate_size(size)
     self.size = size
