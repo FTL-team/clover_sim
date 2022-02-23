@@ -11,6 +11,7 @@
     <arg name="use_clover_physics" default="false"/> <!-- Use inertial parameters from CAD models -->
     <arg name="gui" default="true"/> <!-- Run Gazebo with GUI -->
 
+    <param name="ready_hack" command="rosrun cloversim taskmaster wait_ready" />
 
     <!-- PX4 instance -->
     <node name="sitl_$(arg mav_id)" pkg="px4" type="px4" output="screen" args="$(find px4)/ROMFS/px4fmu_common -s etc/init.d-posix/rcS -i $(arg mav_id)" unless="$(eval type == 'none')">

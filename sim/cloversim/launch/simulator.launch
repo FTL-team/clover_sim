@@ -8,7 +8,8 @@
     <arg name="gui" default="true"/> <!-- Run Gazebo with GUI -->
 
     <!-- Hacky way to generate gazebo world before launching gazebo -->
-    <param name="world_gen_hack" command="rosrun cloversim taskmaster generate_world"/>
+    <param name="world_gen_hack" command="rosrun cloversim taskmaster generate_world" />
+    <param name="ready_hack" command="rosrun cloversim taskmaster notify_ready" />
 
     <!-- Gazebo instance -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch">

@@ -4,6 +4,7 @@ from cloversim.task import WORLD_PATH, task_pkg
 import sys
 import rospy
 import subprocess
+import socket
 
 myargv = rospy.myargv(argv=sys.argv)
 
@@ -15,3 +16,20 @@ cmd = myargv[1]
 
 if cmd == "generate_world":
   print("World generated, path:", generate_world())
+
+if cmd == "wait_ready":
+  with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.bind(("0.0.0.0", 9988))
+    s.listen()
+    conn, addr = s.accept()
+    with conn:
+      data = conn.recv(1024)
+      data = data.decode("utf-8")
+      if data[:5] == "ready":
+        print("Ready")
+        sys.exit(0)  
+
+if cmd == "notify_ready":
+  with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect(("192.168.77.10", 9988))
+    s.sendall(b"ready")
