@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from cloversim.generation import World, Include, Box, ColorMaterial, ImageTextures, Cylinder
+from cloversim.generation import World, Include, Box, Cylinder
+from cloversim.generation import ColorMaterial, ImageTextures, ArucoMap, generate_aruco_map
 import cv2
 import numpy as np
 import qrcode
@@ -8,7 +9,8 @@ import qrcode
 world = World()
 world.add(Include("model://sun"))
 world.add(Include("model://parquet_plane", pose=(0, 0, -0.01)))
-world.add(Include("model://aruco_cmit_txt"))
+
+world.add(ArucoMap("aruco_map", generate_aruco_map()).generate())
 
 colors = [(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1),
           (1, 1, 0), (1, 1, 1), (0.5, 0.5, 0.5), (1, 0.5, 0)]

@@ -103,6 +103,16 @@ ExecStart="/bin/bash" "-ic" ". /etc/profile; . ~/.bashrc; mkfifo /tmp/cloversim_
 		servicePath + ":/etc/systemd/system/cloversim.service",
 	}
 
+	ioutil.WriteFile(SharedContainerFile("aruco_map.txt"), []byte{}, 0666)
+	arucoMap := SharedContainerFile("aruco_map.txt") + ":/home/clover/catkin_ws/src/clover/aruco_pose/map/map.txt";
+	if mode == "simulator" {
+		plugin.MountsRW = []string{
+			arucoMap,
+		}
+	}else{
+		plugin.MountsRO = append(plugin.MountsRO, arucoMap)
+	}
+
 	return plugin, nil
 }
 

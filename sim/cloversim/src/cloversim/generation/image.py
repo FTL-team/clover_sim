@@ -51,6 +51,7 @@ material {k}
       texture_unit
       {{
         texture {path}
+        filtering none
       }}
     }}
   }}
