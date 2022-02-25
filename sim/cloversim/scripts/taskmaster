@@ -3,7 +3,7 @@
 from cloversim.task import WORLD_PATH
 import sys
 import rospy
-import subprocess
+import time
 import socket
 
 myargv = rospy.myargv(argv=sys.argv)
@@ -31,6 +31,11 @@ if cmd == "wait_ready":
         sys.exit(0)  
 
 if cmd == "notify_ready":
-  with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect(("192.168.77.10", 9988))
-    s.sendall(b"ready")
+  for i in range(16):
+    try:
+      with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect(("192.168.77.10", 9988))
+        s.sendall(b"ready")
+      break
+    except:
+      time.sleep(i * 0.1)
