@@ -5,6 +5,8 @@ from cloversim.generation import ColorMaterial, ImageTextures, ArucoMap, generat
 import cv2
 import numpy as np
 import qrcode
+from .colors import colors
+from .randomization import color_markers, status_markers, qrcode_contents
 
 WORLD = World()
 WORLD.add(Include("model://sun"))
@@ -12,16 +14,17 @@ WORLD.add(Include("model://parquet_plane", pose=(0, 0, -0.01)))
 
 WORLD.add(ArucoMap("aruco_map", generate_aruco_map()).generate())
 
-colors = [(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1),
-          (1, 1, 0), (1, 1, 1), (0.5, 0.5, 0.5), (1, 0.5, 0)]
+# Dict containing map color name to color material
+# Example: 'red': ColorMaterial((1, 0, 0))
+color_materials = {k: ColorMaterial(v) for k, v in colors.items()}
 
-for i, color in zip(range(10), colors):
+for i, color in enumerate(color_markers):
   WORLD.add(
       Box("color_box_" + str(i),
           size=(0.4, 0.4, 0.1),
           mass=1,
           pose=(i, -1, 0.05),
-          material=ColorMaterial(color),
+          material=color_materials[color],
           static=True))
 
 WORLD.add(
@@ -29,7 +32,7 @@ WORLD.add(
         "multi_color_box",
         size=(2, 1, 0.5),
         pose=(-2.5, -2.5, 0.25),
-        material=(tuple([ColorMaterial(color) for color in colors[1:7]])),
+        material=(tuple(list(color_materials.values())[1:7])),
     ))
 
 WORLD.add(Include("model://example_model", pose=(-2.5, -2.5, 3)))
@@ -42,24 +45,23 @@ def generate_marker(marker_color):
   return img
 
 
+
+qrcode_texture = qrcode.make(qrcode_contents).get_image()
 image_textures = ImageTextures({
-    "qrcode": qrcode.make("orange").get_image(),
+    "qrcode": qrcode_texture,
     "marker_ok": generate_marker((0, 255, 0)),
     "marker_error": generate_marker((0, 0, 255))
 })
 image_textures.generate_materials()
 
-markers_status = [True, True, False, True, False]
-for i, marker_status in enumerate(markers_status):
+for i, marker_status in enumerate(status_markers):
   WORLD.add(
-      Box(
-          "status_marker_" + str(i),
+      Box("status_marker_" + str(i),
           size=(0.8, 0.8, 0.001),
           pose=(-1, i * 2 + 1, 0.001),
           material=image_textures.materials[
               "marker_" + ("ok" if marker_status else "error")],
-          static=True
-      ))
+          static=True))
 
 WORLD.add(
     Box("qrcode",
@@ -78,4 +80,4 @@ WORLD.add(
                  ColorMaterial((0.5, 0.5, 0.5)),
                  ColorMaterial((1, 0.5, 0)),
                  ColorMaterial((1, 1, 0)),
-)))
+             )))
