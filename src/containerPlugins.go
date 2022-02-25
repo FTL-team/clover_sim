@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"math/rand"
 )
 
 func NewX11Plugin() (*ContainerPlugin, error) {
@@ -127,6 +128,41 @@ func NewReadyPlugin(readyWait *sync.WaitGroup) (*ContainerPlugin, error) {
 	plugin.RunOnBoot = func(container *Container) error {
 		readyWait.Done()
 		return nil
+	}
+
+	return plugin, nil
+}
+
+
+type SeedControl struct {
+	setSeed func(seed string)
+	Seed string
+}
+
+func (seed *SeedControl) NewSeed() {
+	seed.Seed = strconv.Itoa(rand.Int() & 0xFFFFFFFF)
+	seed.setSeed(seed.Seed)
+}
+
+func (seed *SeedControl) SetSeed(seedS string) {
+	seed.Seed = seedS
+	seed.setSeed(seedS)
+}
+
+func NewTaskSeedPlugin(seed *SeedControl) (*ContainerPlugin, error) {
+	plugin := &ContainerPlugin{
+		Name: "taskSeed",
+	}
+
+	seedFilePath := SharedContainerFile("task_seed")
+	seed.setSeed = func(seed string) {
+		ioutil.WriteFile(seedFilePath, []byte(seed), 0666)
+	}
+
+	seed.NewSeed()
+
+	plugin.MountsRO = []string{
+		seedFilePath + ":/home/clover/task_seed",
 	}
 
 	return plugin, nil

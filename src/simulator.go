@@ -35,6 +35,7 @@ type Simulator struct {
 	ContextCancel context.CancelFunc
 	Containers    SimulatorContainers
 	TaskPkgName   string
+	TaskSeed      SeedControl
 }
 
 func (sc *SimulatorContainers) Get(name string) *Container {
@@ -77,6 +78,10 @@ func (sim *Simulator) LaunchContainer(options SimulatorContainerOptions) error {
 	container.AddPluginCheckError(NewX11Plugin())
 	container.AddPluginCheckError(NewSimulatorServicePlugin(container, options.Mode))
 	container.AddPluginCheckError(NewReadyPlugin(&sim.Containers.ReadyWait))
+
+	if options.Mode == "simulator" {
+		container.AddPluginCheckError(NewTaskSeedPlugin(&sim.TaskSeed))
+	}
 
 	sim.Containers.Add(container)
 	if container == nil {

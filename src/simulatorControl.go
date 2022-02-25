@@ -32,6 +32,7 @@ func ProcessCommand(command string, sim *Simulator) {
   case "simulator":
     if len(parts) < 2 {
       HostLogger.Error("Not enough arguments for simulator command, check help")
+      return
     }
     switch parts[1] {
     case "start":
@@ -44,7 +45,29 @@ func ProcessCommand(command string, sim *Simulator) {
       sim.RestartSimulator()
     
     default:
-      HostLogger.Error("Unknown command: %s, check help", parts[0])
+      HostLogger.Error("Unknown simulator command: %s, check help", parts[1])
+    }
+  case "randomization":
+    if len(parts) < 2 {
+      HostLogger.Error("Not enough arguments for randomization command, check help")
+      return
+    }
+    switch parts[1] {
+    case "get":
+      fmt.Println("\rRandomization: " + sim.TaskSeed.Seed)
+    
+    case "set":
+      if len(parts) < 3 {
+        HostLogger.Error("Not enough arguments for randomization command, check help")
+      }
+      sim.TaskSeed.SetSeed(parts[2])
+    
+    case "new":
+      sim.TaskSeed.NewSeed()
+      fmt.Println("\rNew randomization: " + sim.TaskSeed.Seed)
+
+    default:
+      HostLogger.Error("Unknown randomization command: %s, check help", parts[1])
     }
   default:
     HostLogger.Error("Unknown command: %s, check help", parts[0])
