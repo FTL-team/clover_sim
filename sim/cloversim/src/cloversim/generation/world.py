@@ -6,7 +6,7 @@ class World:
   <scene>
     <ambient>0.8 0.8 0.8 1</ambient>
     <background>0.8 0.9 1 1</background>
-    <shadows>true</shadows>
+    <shadows>false</shadows>
     <grid>false</grid>
     <origin_visual>false</origin_visual>
   </scene>
