@@ -76,7 +76,7 @@ func (sim *Simulator) LaunchContainer(options SimulatorContainerOptions) error {
 	container.AddPluginCheckError(sim.Network.GetNetworkPlugin(container, options.DesiredIP))
 	container.AddPluginCheckError(NewX11Plugin())
 	container.AddPluginCheckError(NewSimulatorServicePlugin(container, options.Mode))
-	container.AddPluginCheckError(NewReadyPlugin(sim.TaskPkgName, &sim.Containers.ReadyWait))
+	container.AddPluginCheckError(NewReadyPlugin(&sim.Containers.ReadyWait))
 
 	sim.Containers.Add(container)
 	if container == nil {

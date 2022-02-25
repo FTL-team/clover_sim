@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from cloversim.task import WORLD_PATH, task_pkg
+from cloversim.task import WORLD_PATH
 import sys
 import rospy
 import subprocess
@@ -9,7 +9,8 @@ import socket
 myargv = rospy.myargv(argv=sys.argv)
 
 def generate_world():
-  subprocess.run(["rosrun", task_pkg, "generate_world.py"])
+  from cloversim_task.world import WORLD
+  WORLD.save()
   return WORLD_PATH
 
 cmd = myargv[1]

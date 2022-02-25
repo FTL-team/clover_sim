@@ -117,7 +117,7 @@ ExecStart="/bin/bash" "-ic" ". /etc/profile; . ~/.bashrc; mkfifo /tmp/cloversim_
 }
 
 
-func NewReadyPlugin(taskName string, readyWait *sync.WaitGroup) (*ContainerPlugin, error) {
+func NewReadyPlugin(readyWait *sync.WaitGroup) (*ContainerPlugin, error) {
 	readyWait.Add(1)
 
 	plugin := &ContainerPlugin{
@@ -125,8 +125,6 @@ func NewReadyPlugin(taskName string, readyWait *sync.WaitGroup) (*ContainerPlugi
 	}
 
 	plugin.RunOnBoot = func(container *Container) error {
-		containerCmd := container.RosExec(fmt.Sprintf("sleep 2s; rosparam set /task_pkg %s", taskName), "Setup task and report ready")
-		containerCmd.Run()
 		readyWait.Done()
 		return nil
 	}
