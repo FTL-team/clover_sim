@@ -5,12 +5,15 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v2"
-	// "time"
+	"math/rand"
+	"time"
 )
 
 var HostLogger *Logger
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	HostLogger = NewLogger("host")
 	
 	if os.Geteuid() != 0 {
