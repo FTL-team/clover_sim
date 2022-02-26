@@ -20,6 +20,7 @@ type SimulatorContainerOptions struct {
 type SimulatorOptions struct {
 	Workspace    *Workspace
 	StartAtReady bool
+	TaskPath 		 string
 }
 
 type SimulatorContainers struct {
@@ -114,7 +115,7 @@ func LaunchSimulator(options SimulatorOptions) error {
 			return err
 		}
 
-		taskLayer, err := GetTaskRosLayer(path.Join(LocateSetup(), "tasks", "base_task"))
+		taskLayer, err := GetTaskRosLayer(path.Join(LocateSetup(), "tasks", options.TaskPath))
 		if err != nil {
 			return err
 		}

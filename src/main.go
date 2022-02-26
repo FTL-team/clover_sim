@@ -155,6 +155,11 @@ func main() {
 						Name: "no-start",
 						Usage: "disable automatic simulator(gazebo, px4, clover, etc.) start",
 					},
+					&cli.StringFlag {
+						Name: "task",
+						Usage: "path to task in tasks dir, example: base_task, example_task, task_collections/task_task",
+						Value: "base_task",
+					},
 				},
 				
 				Action: func(c *cli.Context) error {
@@ -171,6 +176,7 @@ func main() {
 					return LaunchSimulator(SimulatorOptions{
 						Workspace: workspace,
 						StartAtReady: !c.Bool("no-start"),
+						TaskPath: c.String("task"),
 					})
 				},
 			}, {
