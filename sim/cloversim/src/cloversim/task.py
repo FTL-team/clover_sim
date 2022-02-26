@@ -29,5 +29,5 @@ def load_seed():
   random.seed(SEED)
   np.random.seed(SEED)
 
-if os.exists("/home/clover/task_seed"):
+if os.path.exists("/home/clover/task_seed"):
   load_seed()
