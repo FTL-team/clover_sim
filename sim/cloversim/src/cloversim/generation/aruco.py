@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from pytest import mark
 from .image import ImageTextures
+import math 
 
 def validate_markers(markers):
   ERROR_MSG = "Markers must be a list of tuples of length 4 (id, x, y, z)"
@@ -79,7 +80,7 @@ class ArucoMap():
       marker_id, x, y, z = marker
       marker_visuals.append(f"""
       <visual name="visual_marker_${marker_id}">
-        <pose>{x} {y} {z} 0 0 0</pose>
+        <pose>{x} {y} {z} 0 0 {math.pi / 2}</pose>
         <cast_shadows>false</cast_shadows>
         <geometry>
           <box>
