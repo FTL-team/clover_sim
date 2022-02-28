@@ -69,6 +69,9 @@ func ProcessCommand(command string, sim *Simulator) {
     default:
       HostLogger.Error("Unknown randomization command: %s, check help", parts[1])
     }
+  case "score":
+    sim.TaskScore.Display()
+
   default:
     HostLogger.Error("Unknown command: %s, check help", parts[0])
   }

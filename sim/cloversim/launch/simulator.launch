@@ -34,4 +34,6 @@
     <node name="sim_proxy" pkg="cloversim" type="sim_proxy" >
         <env name="PROXY_ADDRESS" value="http://clover0:11311"/>
     </node>
+
+    <node name="taskmaster" args="check_task" pkg="cloversim" type="taskmaster" />
 </launch>

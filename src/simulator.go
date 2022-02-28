@@ -37,6 +37,7 @@ type Simulator struct {
 	Containers    SimulatorContainers
 	TaskPkgName   string
 	TaskSeed      SeedControl
+	TaskScore 		TaskScorer
 }
 
 func (sc *SimulatorContainers) Get(name string) *Container {
@@ -82,6 +83,7 @@ func (sim *Simulator) LaunchContainer(options SimulatorContainerOptions) error {
 
 	if options.Mode == "simulator" {
 		container.AddPluginCheckError(NewTaskSeedPlugin(&sim.TaskSeed))
+		container.AddPluginCheckError(NewTaskScorePlugin(&sim.TaskScore))
 	}
 
 	sim.Containers.Add(container)

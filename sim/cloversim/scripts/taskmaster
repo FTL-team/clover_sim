@@ -13,10 +13,18 @@ def generate_world():
   WORLD.save()
   return WORLD_PATH
 
+
+def run_checker():
+  import cloversim_task.checker
+
 cmd = myargv[1]
 
 if cmd == "generate_world":
   print("World generated, path:", generate_world())
+
+if cmd == "check_task":
+  run_checker()
+
 
 if cmd == "wait_ready":
   with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -28,7 +36,7 @@ if cmd == "wait_ready":
       data = data.decode("utf-8")
       if data[:5] == "ready":
         print("Ready")
-        sys.exit(0)  
+        sys.exit(0)
 
 if cmd == "notify_ready":
   for i in range(16):
