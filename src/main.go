@@ -139,6 +139,24 @@ func main() {
 							return workspace.Duplicate(c.Args().Get(1))
 						},
 					},
+
+					{
+						Name:      "clean",
+						Usage:     "Clean workspace from logs and cache, can dramatically reduce size",
+						ArgsUsage: "WORKSPACE_NAME",
+						Action: func(c *cli.Context) error {
+							if c.Args().Len() != 1 {
+								cli.ShowCommandHelp(c, "cleanup")
+
+								return fmt.Errorf("no workspace name specified")
+							}
+							workspace, err := LoadWorkspace(c.Args().First())
+							if err != nil {
+								return err
+							}
+							return workspace.Clean()
+						},
+					},
 				},
 			}, {
 				Name: "prepare",
