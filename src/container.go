@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"sync"
 	"time"
+	"context"
 )
 
 type Container struct {
@@ -44,6 +44,7 @@ func CreateContainer(name string, workspace *Workspace) (*Container, error) {
 		Layers: []*OverlayEntry{
 			CreateBaseFsEntry("base"),
 			CreateBaseFsEntry("cloversim"),
+			CreateBaseFsEntry("task"),
 		},
 		Path: path.Join(container.Path, "rootfs"),
 		Logger: container.Logger,
@@ -134,7 +135,7 @@ func (container *Container) GetLauncher() (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (container *Container) Run(stopSignal *sync.Cond,) error {
+func (container *Container) Run(ctx context.Context) error {
 
 	container.Logger.Info("Launching container: %s ", container.Name)
  
@@ -147,9 +148,7 @@ func (container *Container) Run(stopSignal *sync.Cond,) error {
 	Running := true
 
 	go func() {
-		stopSignal.L.Lock()
-		defer stopSignal.L.Unlock()
-		stopSignal.Wait()
+		<-ctx.Done()
 		if Running {
 			container.Logger.Info("Stopping container %s", container.Name)
 			container.Poweroff()
@@ -159,7 +158,9 @@ func (container *Container) Run(stopSignal *sync.Cond,) error {
 	go func() {
 		time.Sleep(800 * time.Millisecond)
 		for _, plugin := range container.Plugins {
-			go plugin.RunOnBoot(container)
+			if plugin.RunOnBoot != nil {
+				go plugin.RunOnBoot(container)
+			}
 		}
 	}()
 
@@ -210,6 +211,20 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 	runOptions = append(runOptions, options.Command)
 
 	return exec.Command("systemd-run", runOptions...)
+}
+
+func (container *Container) RosExec(command string, description string) *exec.Cmd {
+	rosLoadPrefix := ". /etc/profile; . ~/.bashrc;"
+	container.Logger.Verbose("RosExec: %s", command)
+	return container.Exec(ExecContainerOptions{
+		Command:        rosLoadPrefix + command,
+		Description: 		description,
+		Uid:         1000,
+		ServiceOptions: map[string]string{
+			"After": "roscore.target",
+			"Wants": "roscore.target",
+		},
+	})
 }
 
 func (container *Container) Systemctl(options ...string) error {

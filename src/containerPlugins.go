@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"math/rand"
 )
 
 func NewX11Plugin() (*ContainerPlugin, error) {
@@ -73,7 +75,7 @@ func NewX11Plugin() (*ContainerPlugin, error) {
 	return plugin, nil
 }
 
-func NewSimulatorServicePlugin(container *Container, mode string, launch bool) (*ContainerPlugin, error) {
+func NewSimulatorServicePlugin(container *Container, mode string) (*ContainerPlugin, error) {
 
 	plugin := &ContainerPlugin{
 		Name: "cloversimService",
@@ -102,12 +104,66 @@ ExecStart="/bin/bash" "-ic" ". /etc/profile; . ~/.bashrc; mkfifo /tmp/cloversim_
 		servicePath + ":/etc/systemd/system/cloversim.service",
 	}
 
-	plugin.RunOnBoot = func(container *Container) error {
-		if launch {
-			container.Logger.Info("Starting simulator")
-			return container.Systemctl("start", "cloversim.service")
+	ioutil.WriteFile(SharedContainerFile("aruco_map.txt"), []byte{}, 0666)
+	os.Chmod(SharedContainerFile("aruco_map.txt"), 0666)
+	arucoMap := SharedContainerFile("aruco_map.txt") + ":/home/clover/catkin_ws/src/clover/aruco_pose/map/map.txt";
+	if mode == "simulator" {
+		plugin.MountsRW = []string{
+			arucoMap,
 		}
+	}else{
+		plugin.MountsRO = append(plugin.MountsRO, arucoMap)
+	}
+
+	return plugin, nil
+}
+
+
+func NewReadyPlugin(readyWait *sync.WaitGroup) (*ContainerPlugin, error) {
+	readyWait.Add(1)
+
+	plugin := &ContainerPlugin{
+		Name: "ready",
+	}
+
+	plugin.RunOnBoot = func(container *Container) error {
+		readyWait.Done()
 		return nil
+	}
+
+	return plugin, nil
+}
+
+
+type SeedControl struct {
+	setSeed func(seed string)
+	Seed string
+}
+
+func (seed *SeedControl) NewSeed() {
+	seed.Seed = strconv.Itoa(rand.Int() & 0xFFFFFFFF)
+	seed.setSeed(seed.Seed)
+}
+
+func (seed *SeedControl) SetSeed(seedS string) {
+	seed.Seed = seedS
+	seed.setSeed(seedS)
+}
+
+func NewTaskSeedPlugin(seed *SeedControl) (*ContainerPlugin, error) {
+	plugin := &ContainerPlugin{
+		Name: "taskSeed",
+	}
+
+	seedFilePath := SharedContainerFile("task_seed")
+	seed.setSeed = func(seed string) {
+		ioutil.WriteFile(seedFilePath, []byte(seed), 0666)
+	}
+
+	seed.NewSeed()
+
+	plugin.MountsRO = []string{
+		seedFilePath + ":/home/clover/task_seed",
 	}
 
 	return plugin, nil

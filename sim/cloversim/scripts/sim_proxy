@@ -10,9 +10,11 @@ from urllib.parse import urlparse
 CALLER_ID = "/sim_proxy"
 
 topics_map = {
-  "/main_camera/image_raw": "sensor_msgs/Image",
-  "/main_camera/camera_info": "sensor_msgs/CameraInfo",
-  "/led/state": "led_msgs/LEDStateArray"
+    "/main_camera/image_raw": "sensor_msgs/Image",
+    "/main_camera/camera_info": "sensor_msgs/CameraInfo",
+    "/led/state": "led_msgs/LEDStateArray",
+    "/rangefinder/range": "sensor_msgs/Range",
+    "/clock": "rosgraph_msgs/Clock"
 }
 
 service_map = {"/led/set_leds": "led_msgs/SetLEDs"}

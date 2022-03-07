@@ -5,12 +5,15 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v2"
-	// "time"
+	"math/rand"
+	"time"
 )
 
 var HostLogger *Logger
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	HostLogger = NewLogger("host")
 	
 	if os.Geteuid() != 0 {
@@ -152,6 +155,11 @@ func main() {
 						Name: "no-start",
 						Usage: "disable automatic simulator(gazebo, px4, clover, etc.) start",
 					},
+					&cli.StringFlag {
+						Name: "task",
+						Usage: "path to task in tasks dir, example: base_task, example_task, task_collections/task_task",
+						Value: "base_task",
+					},
 				},
 				
 				Action: func(c *cli.Context) error {
@@ -167,7 +175,8 @@ func main() {
 
 					return LaunchSimulator(SimulatorOptions{
 						Workspace: workspace,
-						NoStart: c.Bool("no-start"),
+						StartAtReady: !c.Bool("no-start"),
+						TaskPath: c.String("task"),
 					})
 				},
 			}, {
@@ -181,7 +190,9 @@ func main() {
 				},
 				
 				Action: func(c *cli.Context) error {
-					return BuildCloversimLayer(c.Bool("fast"))
+					cloversimLayer := GetCloversimLayer()
+		
+					return cloversimLayer.RebuildLayer(c.Bool("fast"))
 				},
 			},
 		},

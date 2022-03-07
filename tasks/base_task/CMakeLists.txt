@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(cloversim)
+project(base_task)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -9,6 +9,7 @@ project(cloversim)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   rospy
+  gazebo_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -103,8 +104,8 @@ catkin_python_setup()
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES cloversim
-#  CATKIN_DEPENDS rospy
 #  DEPENDS system_lib
+CATKIN_DEPENDS gazebo_ros
 )
 
 ###########
@@ -158,8 +159,6 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
-  scripts/sim_proxy
-  scripts/taskmaster
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -192,6 +191,8 @@ catkin_install_python(PROGRAMS
 # )
 
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY models DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY resources DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 #############
 ## Testing ##

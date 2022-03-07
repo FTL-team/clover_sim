@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"golang.org/x/term"
 )
 
-func ProcessCommand(command string, interruptChanel chan os.Signal, simulatorCommands chan SimulatorCommand) {
+func ProcessCommand(command string, sim *Simulator) {
   if len(command) == 0 {
     return
   } 
@@ -29,56 +28,57 @@ func ProcessCommand(command string, interruptChanel chan os.Signal, simulatorCom
     fmt.Println("\r  simulator stop     - stop simulator (gazebo, clover, etc.)")
     fmt.Println("\r  simulator restart  - restart the simulator (gazebo, clover, etc.)")
   case "exit":
-    interruptChanel <- os.Interrupt
+    sim.ContextCancel()
   case "simulator":
     if len(parts) < 2 {
       HostLogger.Error("Not enough arguments for simulator command, check help")
+      return
     }
     switch parts[1] {
     case "start":
-      simulatorCommands <- SimulatorCommand{
-        Command: "machine",
-        MachineCommand: MachineCommand{
-          Command: "simulator_start",
-        },
-      }
+      sim.StartSimulator()
 
     case "stop":
-      simulatorCommands <- SimulatorCommand{
-        Command: "machine",
-        MachineCommand: MachineCommand{
-          Command: "simulator_stop",
-        },
-      }
+      sim.StopSimulator()
 
     case "restart":
-      simulatorCommands <- SimulatorCommand{
-        Command: "machine",
-        MachineCommand: MachineCommand{
-          Command: "simulator_stop",
-        },
-      }
-
-      time.Sleep(time.Second)
-
-      simulatorCommands <- SimulatorCommand{
-        Command: "machine",
-        MachineCommand: MachineCommand{
-          Command: "simulator_start",
-        },
-      }
+      sim.RestartSimulator()
     
     default:
-      HostLogger.Error("Unknown command: %s, check help", parts[0])
-      
+      HostLogger.Error("Unknown simulator command: %s, check help", parts[1])
     }
+  case "randomization":
+    if len(parts) < 2 {
+      HostLogger.Error("Not enough arguments for randomization command, check help")
+      return
+    }
+    switch parts[1] {
+    case "get":
+      fmt.Println("\rRandomization: " + sim.TaskSeed.Seed)
+    
+    case "set":
+      if len(parts) < 3 {
+        HostLogger.Error("Not enough arguments for randomization command, check help")
+      }
+      sim.TaskSeed.SetSeed(parts[2])
+    
+    case "new":
+      sim.TaskSeed.NewSeed()
+      fmt.Println("\rNew randomization: " + sim.TaskSeed.Seed)
+
+    default:
+      HostLogger.Error("Unknown randomization command: %s, check help", parts[1])
+    }
+  case "score":
+    sim.TaskScore.Display()
+
   default:
     HostLogger.Error("Unknown command: %s, check help", parts[0])
   }
 
 }
 
-func SimulatorController(interruptChanel chan os.Signal, exitChan chan bool,  simulatorCommands chan SimulatorCommand) {
+func SimulatorController(sim *Simulator) {
 	if IsTTY() {
 
 		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -118,7 +118,7 @@ func SimulatorController(interruptChanel chan os.Signal, exitChan chan bool,  si
 mainLoop:
 	for {
 		select {
-		case <-exitChan:
+		case <-sim.Context.Done():
 			break mainLoop
 
 		case ch := <-inp:
@@ -133,13 +133,13 @@ mainLoop:
             hist = append(hist, input)
           }
 
-          ProcessCommand(input, interruptChanel,  simulatorCommands)
+          ProcessCommand(input, sim)
           pos = 0
           input = ""
           hist_pos = 0
           hist_save = ""
         } else if ch == 3 || ch == 4 {
-          interruptChanel <- os.Interrupt
+          sim.ContextCancel()
         } else if ch == 27 {
           mode = 1
         } else if ch == 127 {
