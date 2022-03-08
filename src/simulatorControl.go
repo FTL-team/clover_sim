@@ -22,53 +22,42 @@ func ProcessCommand(command string, sim *Simulator) {
   case "help":
     fmt.Println("\r")
     fmt.Println("\rAvailable commands:")
-    fmt.Println("\r  help               - show this help")
-    fmt.Println("\r  exit               - shutdowns cloversim")
-    fmt.Println("\r  simulator start    - start simulator (gazebo, clover, etc.)")
-    fmt.Println("\r  simulator stop     - stop simulator (gazebo, clover, etc.)")
-    fmt.Println("\r  simulator restart  - restart the simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  help     - show this help")
+    fmt.Println("\r  exit     - shutdowns cloversim")
+    fmt.Println("\r  start    - start simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  stop     - stop simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  restart  - restart the simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  rget     - get current randomzation")
+    fmt.Println("\r  rset     - set randomzation to value from second argument")
+    fmt.Println("\r  rnew     - generate new random randomzation")
+    fmt.Println("\r  score    - show current task scoring")
+
   case "exit":
     sim.ContextCancel()
-  case "simulator":
-    if len(parts) < 2 {
-      HostLogger.Error("Not enough arguments for simulator command, check help")
-      return
-    }
-    switch parts[1] {
-    case "start":
-      sim.StartSimulator()
+  case "start":
+    sim.StartSimulator()
 
-    case "stop":
-      sim.StopSimulator()
+  case "stop":
+    sim.StopSimulator()
 
-    case "restart":
-      sim.RestartSimulator()
-    
-    default:
-      HostLogger.Error("Unknown simulator command: %s, check help", parts[1])
-    }
-  case "randomization":
+  case "restart":
+    sim.RestartSimulator()
+
+  case "rget":
+    fmt.Println("\rRandomization: " + sim.TaskSeed.Seed)
+  
+  case "rset":
     if len(parts) < 2 {
       HostLogger.Error("Not enough arguments for randomization command, check help")
       return
     }
-    switch parts[1] {
-    case "get":
-      fmt.Println("\rRandomization: " + sim.TaskSeed.Seed)
-    
-    case "set":
-      if len(parts) < 3 {
-        HostLogger.Error("Not enough arguments for randomization command, check help")
-      }
-      sim.TaskSeed.SetSeed(parts[2])
-    
-    case "new":
-      sim.TaskSeed.NewSeed()
-      fmt.Println("\rNew randomization: " + sim.TaskSeed.Seed)
+    sim.TaskSeed.SetSeed(parts[1])
+    HostLogger.Info("\rNew randomization: " + sim.TaskSeed.Seed)
+  
+  case "rnew":
+    sim.TaskSeed.NewSeed()
+    fmt.Println("\rNew randomization: " + sim.TaskSeed.Seed)
 
-    default:
-      HostLogger.Error("Unknown randomization command: %s, check help", parts[1])
-    }
   case "score":
     sim.TaskScore.Display()
 
