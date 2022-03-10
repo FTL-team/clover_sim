@@ -33,7 +33,10 @@ get_model_state = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
 
 def is_clover_armed():
   props = get_joint_properties('rotor_0_joint')
-  return props.rate[0] > 0.1
+  try:
+    return props.rate[0] > 0.1
+  except IndexError:
+    return False
 
 def get_clover_position():
   props = get_model_state('clover', '')
