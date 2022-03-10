@@ -182,6 +182,7 @@ type ExecContainerOptions struct {
 	Uid int
 	Gid int
 	Unit string
+	Interactive bool
 }
 
 func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
@@ -205,7 +206,11 @@ func (container *Container) Exec(options ExecContainerOptions) *exec.Cmd {
 
 	runOptions = append(runOptions, "--description="+options.Description)
 	runOptions = append(runOptions, "--machine="+container.Name)
-	runOptions = append(runOptions, "-P")
+	if options.Interactive {
+		runOptions = append(runOptions, "--pty")
+	}else{
+		runOptions = append(runOptions, "-P")
+	}
 	runOptions = append(runOptions, "/bin/bash")
 	runOptions = append(runOptions, "-ic")
 	runOptions = append(runOptions, options.Command)
@@ -220,6 +225,7 @@ func (container *Container) RosExec(command string, description string) *exec.Cm
 		Command:        rosLoadPrefix + command,
 		Description: 		description,
 		Uid:         1000,
+		Interactive: true,
 		ServiceOptions: map[string]string{
 			"After": "roscore.target",
 			"Wants": "roscore.target",

@@ -31,6 +31,7 @@ func ProcessCommand(command string, sim *Simulator) {
     fmt.Println("\r  rset     - set randomzation to value from second argument")
     fmt.Println("\r  rnew     - generate new random randomzation")
     fmt.Println("\r  score    - show current task scoring")
+    fmt.Println("\r  run      - run user program (runs /home/clover/run.sh inside clover0 container)")
 
   case "exit":
     sim.ContextCancel()
@@ -61,31 +62,43 @@ func ProcessCommand(command string, sim *Simulator) {
   case "score":
     sim.TaskScore.Display()
 
+  case "run":
+    sim.RunUser()
+
   default:
     HostLogger.Error("Unknown command: %s, check help", parts[0])
   }
 
 }
 
-func SimulatorController(sim *Simulator) {
-	if IsTTY() {
+var oldState *term.State
 
-		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		defer func() {
+func make_raw() {
+	if IsTTY() {
+    oldState, _ = term.MakeRaw(int(os.Stdin.Fd()))
+  }
+}
+
+func make_normal() {
+  if IsTTY() {
+    if oldState != nil {
       term.Restore(int(os.Stdin.Fd()), oldState)
-    }()
-	}
+    }
+  }
+}
+
+func SimulatorController(sim *Simulator) {
+  make_raw()
+  defer make_normal()
 
 	inp := make(chan byte)
+  read := make(chan bool)
   hist := []string{}
   
 	go func() {
 		b := make([]byte, 1)
 		for {
+      <-read
 			_, err := os.Stdin.Read(b)
 			if err != nil {
 				HostLogger.Error("%s", err)
@@ -106,6 +119,7 @@ func SimulatorController(sim *Simulator) {
 
 mainLoop:
 	for {
+    read <- true
 		select {
 		case <-sim.Context.Done():
 			break mainLoop
@@ -121,14 +135,15 @@ mainLoop:
           if len(hist) == 0 || hist[len(hist)-1] != input {
             hist = append(hist, input)
           }
-
+          make_normal()
           ProcessCommand(input, sim)
+          make_raw()
           pos = 0
           input = ""
           hist_pos = 0
           hist_save = ""
         } else if ch == 3 || ch == 4 {
-          sim.ContextCancel()
+          sim.Interrupt()
         } else if ch == 27 {
           mode = 1
         } else if ch == 127 {
