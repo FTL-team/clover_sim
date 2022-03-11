@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-	"os/exec"
 	"fmt"
 	"path"
 	"hash/crc32"
@@ -18,7 +16,27 @@ type RosLayer struct {
 	ReportName string
 } 
 
+func (rl *RosLayer) RebuildLayer(fastBuild bool) error {
+	pkgLayerPath := path.Join("/home/clover/catkin_ws/src", rl.RosPackageName)
+	
+	buildCommand := fmt.Sprintf("rm %[1]s; cp -r /build_rospkg %[1]s && chown -R clover %[1]s", pkgLayerPath)
+	buildCommand += "&& source /etc/profile && source ~/.bashrc"
+	buildCommand += fmt.Sprintf("&& cd /home/clover/catkin_ws/ && catkin_make %s", rl.RosPackageName)
+	buildCommand += "&& history -c"
+	
+	buildLayer := &BuildLayer{
+		LayerEntry: &rl.LayerEntry,
+		ParentLayers: rl.ParentLayers,
+		ReportName: rl.ReportName,
+		BuildCommand: buildCommand,
 
+		Binds: []string{
+			rl.RosPackagePath + ":/build_rospkg",
+		},
+	}
+
+	return buildLayer.RebuildLayer(fastBuild, false)
+}
 
 func (rl *RosLayer) ShouldRebuild() (bool) {
 	crc32q := crc32.MakeTable(0x82f63b78)
@@ -41,46 +59,6 @@ func (rl *RosLayer) ShouldRebuild() (bool) {
 	return layerCrc != packageCrc
 } 
 
-func (rl *RosLayer) RebuildLayer(fastBuild bool) error {
-	HostLogger.Info("Building %s layer, this may take a while...", rl.ReportName)
-
-	buildContainerPath := path.Join(LocateSetup(), "containers", "__build_layer")
-	if !fastBuild {
-		os.RemoveAll(rl.LayerEntry.Path)
-	}
-	os.MkdirAll(rl.LayerEntry.Path, os.ModePerm)
-
-	overlay := &Overlay{
-		Layers: rl.ParentLayers,
-		OverlayLayer: &rl.LayerEntry,
-		
-		Path: buildContainerPath,
-		Logger: HostLogger,
-	}
-	defer overlay.Destroy()
-
-	if err:= overlay.Mount(); err != nil {
-		return err
-	}
-
-	pkgLayerPath := path.Join("/home/clover/catkin_ws/src", rl.RosPackageName)
-
-	binder := rl.RosPackagePath + ":/build_rospkg"
-	buildCommand := fmt.Sprintf("rm %[1]s; cp -r /build_rospkg %[1]s && chown -R clover %[1]s", pkgLayerPath)
-	buildCommand += "&& source /etc/profile && source ~/.bashrc"
-	buildCommand += fmt.Sprintf("&& cd /home/clover/catkin_ws/ && catkin_make %s", rl.RosPackageName)
-	buildCommand += "&& history -c"
-
-	cmd := exec.Command("systemd-nspawn", "-u", "clover", "--bind-ro", binder, "-D", overlay.Path, "/bin/bash", "-i", "-c", buildCommand)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		HostLogger.Error("Build failed, %s", err)
-		HostLogger.Info("Build output: %s", string(out))
-		os.RemoveAll(path.Join(rl.LayerEntry.Path + pkgLayerPath, "package.xml"))
-	}
-	return err
-}
 
 func (rl *RosLayer) RebuildIfNeeded() error {
 	if rl.ShouldRebuild() {

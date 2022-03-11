@@ -251,3 +251,41 @@ func (workspace *Workspace) Clean() error {
 	}
 	return nil
 }
+
+func (workspace *Workspace) BuildWorkspace(taskname string, command string, binds []string) error {
+	{
+		cloversimLayer := GetCloversimLayer()
+
+		if err := cloversimLayer.RebuildIfNeeded(); err != nil {
+			HostLogger.Error("Failed to build cloversim layer: %s", err)
+			return err
+		}
+
+		taskLayer, err := GetTaskRosLayer(path.Join(LocateSetup(), "tasks", taskname))
+		if err != nil {
+			return err
+		}
+
+		if err := taskLayer.RebuildIfNeeded(); err != nil {
+			HostLogger.Error("Failed to build task layer: %s", err)
+			return err
+		}
+	}
+
+	buildLayer := &BuildLayer{
+		LayerEntry: workspace.CreateOverlayEntry(),
+		ParentLayers: []*OverlayEntry{
+			CreateBaseFsEntry("base"),
+			CreateBaseFsEntry("cloversim"),
+			CreateBaseFsEntry("task"),
+		},
+
+		ReportName: "workspace",
+		BuildCommand: "source /etc/profile && source ~/.bashrc && " + command,
+		Binds: binds,
+	}
+
+	buildLayer.RebuildLayer(true, true)
+
+	return nil
+}

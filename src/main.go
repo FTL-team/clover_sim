@@ -157,6 +157,40 @@ func main() {
 							return workspace.Clean()
 						},
 					},
+					{
+						Name:      "build",
+						Usage:     "Build workspace using user supplied script",
+						ArgsUsage: "WORKSPACE_NAME BUILD_COMMAND...",
+							Flags: []cli.Flag{
+							&cli.StringFlag {
+								Name: "task",
+								Usage: "path to task in tasks dir, example: base_task, example_task, task_collections/task_task",
+								Value: "base_task",
+							},
+							&cli.StringSliceFlag{
+								Name: "bind",
+								Usage: "bind dirs from host to build container, exmaple: /home/user/buil_proj:/build_proj, this will allow acces to /home/user/buil_proj to /build_proj in build container",
+							},
+						},
+						Action: func(c *cli.Context) error {
+							if c.Args().Len() < 2 {
+								cli.ShowCommandHelp(c, "build")
+
+								return fmt.Errorf("not enough argumnetc")
+							}
+							workspace, err := LoadWorkspace(c.Args().First())
+							command := ""
+							for _, a := range c.Args().Tail() {
+								command += a + " "
+							}
+							fmt.Println(command)
+
+							if err != nil {
+								return err
+							}
+							return workspace.BuildWorkspace(c.String("task"), command, c.StringSlice("bind"))
+						},
+					},
 				},
 			}, {
 				Name: "prepare",
