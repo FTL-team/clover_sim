@@ -169,8 +169,7 @@ func LaunchSimulator(options SimulatorOptions) error {
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		go func() {
 			for range c {
-				HostLogger.Info("Stopping simulator")
-				sim.ContextCancel()
+				sim.Interrupt()
 			}
 		}()
 	}
@@ -208,4 +207,19 @@ func (sim *Simulator) RestartSimulator() {
 	sim.AllSystemctl("stop", "cloversim")
 	time.Sleep(time.Second)
 	sim.AllSystemctl("start", "cloversim")
+}
+
+func (sim *Simulator) Interrupt() {
+	HostLogger.Info("Stopping simulator")
+	sim.ContextCancel()
+}
+
+func (sim *Simulator) RunUser() {
+	sim.Containers.ReadyWait.Wait()
+	cmd := sim.Containers.Get("clover0").RosExec("cd /home/clover && ./run.sh", "Run user script")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	cmd.Run()
 }

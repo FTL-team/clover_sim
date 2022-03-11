@@ -22,55 +22,48 @@ func ProcessCommand(command string, sim *Simulator) {
   case "help":
     fmt.Println("\r")
     fmt.Println("\rAvailable commands:")
-    fmt.Println("\r  help               - show this help")
-    fmt.Println("\r  exit               - shutdowns cloversim")
-    fmt.Println("\r  simulator start    - start simulator (gazebo, clover, etc.)")
-    fmt.Println("\r  simulator stop     - stop simulator (gazebo, clover, etc.)")
-    fmt.Println("\r  simulator restart  - restart the simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  help     - show this help")
+    fmt.Println("\r  exit     - shutdowns cloversim")
+    fmt.Println("\r  start    - start simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  stop     - stop simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  restart  - restart the simulator (gazebo, clover, etc.)")
+    fmt.Println("\r  rget     - get current randomzation")
+    fmt.Println("\r  rset     - set randomzation to value from second argument")
+    fmt.Println("\r  rnew     - generate new random randomzation")
+    fmt.Println("\r  score    - show current task scoring")
+    fmt.Println("\r  run      - run user program (runs /home/clover/run.sh inside clover0 container)")
+
   case "exit":
     sim.ContextCancel()
-  case "simulator":
-    if len(parts) < 2 {
-      HostLogger.Error("Not enough arguments for simulator command, check help")
-      return
-    }
-    switch parts[1] {
-    case "start":
-      sim.StartSimulator()
+  case "start":
+    sim.StartSimulator()
 
-    case "stop":
-      sim.StopSimulator()
+  case "stop":
+    sim.StopSimulator()
 
-    case "restart":
-      sim.RestartSimulator()
-    
-    default:
-      HostLogger.Error("Unknown simulator command: %s, check help", parts[1])
-    }
-  case "randomization":
+  case "restart":
+    sim.RestartSimulator()
+
+  case "rget":
+    fmt.Println("\rRandomization: " + sim.TaskSeed.Seed)
+  
+  case "rset":
     if len(parts) < 2 {
       HostLogger.Error("Not enough arguments for randomization command, check help")
       return
     }
-    switch parts[1] {
-    case "get":
-      fmt.Println("\rRandomization: " + sim.TaskSeed.Seed)
-    
-    case "set":
-      if len(parts) < 3 {
-        HostLogger.Error("Not enough arguments for randomization command, check help")
-      }
-      sim.TaskSeed.SetSeed(parts[2])
-    
-    case "new":
-      sim.TaskSeed.NewSeed()
-      fmt.Println("\rNew randomization: " + sim.TaskSeed.Seed)
+    sim.TaskSeed.SetSeed(parts[1])
+    HostLogger.Info("\rNew randomization: " + sim.TaskSeed.Seed)
+  
+  case "rnew":
+    sim.TaskSeed.NewSeed()
+    fmt.Println("\rNew randomization: " + sim.TaskSeed.Seed)
 
-    default:
-      HostLogger.Error("Unknown randomization command: %s, check help", parts[1])
-    }
   case "score":
     sim.TaskScore.Display()
+
+  case "run":
+    sim.RunUser()
 
   default:
     HostLogger.Error("Unknown command: %s, check help", parts[0])
@@ -78,25 +71,34 @@ func ProcessCommand(command string, sim *Simulator) {
 
 }
 
-func SimulatorController(sim *Simulator) {
-	if IsTTY() {
+var oldState *term.State
 
-		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		defer func() {
+func make_raw() {
+	if IsTTY() {
+    oldState, _ = term.MakeRaw(int(os.Stdin.Fd()))
+  }
+}
+
+func make_normal() {
+  if IsTTY() {
+    if oldState != nil {
       term.Restore(int(os.Stdin.Fd()), oldState)
-    }()
-	}
+    }
+  }
+}
+
+func SimulatorController(sim *Simulator) {
+  make_raw()
+  defer make_normal()
 
 	inp := make(chan byte)
+  read := make(chan bool)
   hist := []string{}
   
 	go func() {
 		b := make([]byte, 1)
 		for {
+      <-read
 			_, err := os.Stdin.Read(b)
 			if err != nil {
 				HostLogger.Error("%s", err)
@@ -117,6 +119,7 @@ func SimulatorController(sim *Simulator) {
 
 mainLoop:
 	for {
+    read <- true
 		select {
 		case <-sim.Context.Done():
 			break mainLoop
@@ -132,14 +135,15 @@ mainLoop:
           if len(hist) == 0 || hist[len(hist)-1] != input {
             hist = append(hist, input)
           }
-
+          make_normal()
           ProcessCommand(input, sim)
+          make_raw()
           pos = 0
           input = ""
           hist_pos = 0
           hist_save = ""
         } else if ch == 3 || ch == 4 {
-          sim.ContextCancel()
+          sim.Interrupt()
         } else if ch == 27 {
           mode = 1
         } else if ch == 127 {

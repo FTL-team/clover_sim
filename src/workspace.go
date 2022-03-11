@@ -19,6 +19,13 @@ type WorkspaceSerialized struct {
 	Name string `yaml:"name"`
 }
 
+var CLEAN_DIRS = []string{
+	"fs/var/log",
+	"fs/var/cache",
+	"fs/home/clover/.ros/log",
+	"fs/home/clover/.cache",
+}
+
 func validateWorkspaceName(name string) error {
 	for _, c := range name {
 
@@ -142,8 +149,14 @@ func (workspace *Workspace) Export() error {
 		return err
 	}
 
+	to_exclude := []string{}
+	for _, dir := range CLEAN_DIRS {
+		to_exclude = append(to_exclude, "--exclude=" + dir)
+	}
+
 	export_path := path.Join(wd, workspace.Name + ".tar.gz")
 	args := []string{"-zcvf", export_path}
+	args = append(to_exclude, args...)
 
 	for _, fileI := range filesI {
 		args = append(args, fileI.Name())
@@ -230,4 +243,49 @@ func (workspace *Workspace) CreateOverlayEntry() (*OverlayEntry) {
 		OverlayWork: path.Join(workspace.Path, ".overlay_work"),
 	}
 	return overlayEntry
+}
+
+func (workspace *Workspace) Clean() error {
+	for _, entry := range CLEAN_DIRS {
+		os.RemoveAll(path.Join(workspace.Path, entry))
+	}
+	return nil
+}
+
+func (workspace *Workspace) BuildWorkspace(taskname string, command string, binds []string) error {
+	{
+		cloversimLayer := GetCloversimLayer()
+
+		if err := cloversimLayer.RebuildIfNeeded(); err != nil {
+			HostLogger.Error("Failed to build cloversim layer: %s", err)
+			return err
+		}
+
+		taskLayer, err := GetTaskRosLayer(path.Join(LocateSetup(), "tasks", taskname))
+		if err != nil {
+			return err
+		}
+
+		if err := taskLayer.RebuildIfNeeded(); err != nil {
+			HostLogger.Error("Failed to build task layer: %s", err)
+			return err
+		}
+	}
+
+	buildLayer := &BuildLayer{
+		LayerEntry: workspace.CreateOverlayEntry(),
+		ParentLayers: []*OverlayEntry{
+			CreateBaseFsEntry("base"),
+			CreateBaseFsEntry("cloversim"),
+			CreateBaseFsEntry("task"),
+		},
+
+		ReportName: "workspace",
+		BuildCommand: "source /etc/profile && source ~/.bashrc && " + command,
+		Binds: binds,
+	}
+
+	buildLayer.RebuildLayer(true, true)
+
+	return nil
 }
