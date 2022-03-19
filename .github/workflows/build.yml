@@ -26,6 +26,7 @@ jobs:
           name: clover_sim
           path: |
             virgl
+            tasks
             sim
             clover_sim
   
