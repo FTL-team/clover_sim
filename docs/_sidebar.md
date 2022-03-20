@@ -1,4 +1,4 @@
 * [General information](/)
-* [Install](/install)
+* [Workspaces](/ws)
 * [Getting started](/getting_started)
 * [Tasks](/tasks)
