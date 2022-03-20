@@ -1,4 +1,4 @@
-# Start container
+# Starting simulator
 
 1. Go to `clover_sim` directory
 2. Create workspace(workspace is concept for managing and transfering simulator files: projects, packages, etc.)
@@ -9,13 +9,19 @@
     ```bash
     sudo  ./clover_sim launch test
     ```
-4. Login into container  using login `clover` and password `clover`
-5. Launch simulator using
+4. fds   
+5. Connect via ssh using `ssh clover@192.168.77.10`
+6. Login into container  using login `clover` and password `clover`
+7. Launch simulator using
     ```bash
     roslaunch clover_simulation simulator.launch 
     ```
-6. Enjoy simulator
-7. You can connect via ssh using `ssh clover@localhost -p 2222`
-8. To exit container use `sudo poweroff` (inside of conatainer)
+8. Enjoy simulator
 
-For more information check`sudo ../clover_sim help`
+9. To exit container use `sudo poweroff` (inside of conatainer)
+
+10. For security reasons you should write code inside another container
+`ssh clover@192.168.77.2`
+
+
+For more information check `sudo ../clover_sim help`
