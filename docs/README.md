@@ -1,4 +1,5 @@
 # Clover sim
+## Features
 ![https://i.imgur.com/AUTIJBg.png](https://i.imgur.com/AUTIJBg.png)
 
 Simple and powerful tool for Clover simulation with ability to create workspaces
@@ -12,7 +13,7 @@ You will get:
 - Gazebo and task checker are isolated from user workspace and clovered
 - Ability to start several copters in different containers
 
-# Installation
+## Installation
 
 To install this tool just run these commands:
 ```bash
