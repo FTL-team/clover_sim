@@ -1,3 +1,3 @@
 * [General information](/)
-* [Getting started](/getting_started)
+* [Workspaces](/ws)
 * [Tasks](/tasks)

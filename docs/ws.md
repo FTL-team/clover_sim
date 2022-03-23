@@ -1,17 +1,24 @@
 # Workspaces
 
-To work with workspaces you should use this command pattern:
+Workspace is a concept for managing and transfering simulator files: projects, packages, etc.
+
+
+You can manage your workspaces using **workspaces** subcommands:
+- `workspace create test` - Create a new workspace, name as param
+- `workspace list` - get list of all workspaces
+- `workspace remove test` - Remove a workspace, name as param
+- `workspace export test` - Export a workspace as tar.gz archive, name as param
+- `workspace import ./test.tar.gz` - Import a workspace from tar.gz archive, path to archieve as param
+- `workspace duplicate old new` - Duplicate a workspace
+- `workspace clean test` - Delete a workspace cache and logs
+
+> Instead of writing workspace every time you can use shortcut **ws**
+
+Some examples:
+
 ```bash
-sudo ./clover_sim workspace command
+sudo ./clover_sim ws create test # Create workspace "test"
+sudo ./clover_sim workspace list # List all workspaces
+sudo ./clover_sim workspace remove old_code # Remove workspace "old_code"
+sudo ./clover_sim ws export test # Export workspace "test", file with name test.tar.gz will apear
 ```
-Instead of `workspace` you can use `ws`
-
-Here is a list of commands:
-- `create test` - Create a new workspace, name as param
-- `list` - get list of all workspaces
-- `remove test` - Remove a workspace, name as param
-- `export test` - Export a workspace as tar.gz archive, name as param
-- `import ./test.tar.gz` - Import a workspace from tar.gz archive, path to archieve as param
-- `duplicate old new` - Duplicate a workspace
-- `clean test` - Delete a workspace cache and logs
-
