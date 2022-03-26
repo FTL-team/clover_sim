@@ -1,3 +1,3 @@
 * [General information](/)
-* [Workspaces](/ws)
+* [Usage](/usage)
 * [Tasks](/tasks)

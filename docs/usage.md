@@ -1,4 +1,6 @@
-# Workspaces
+# Usage
+
+## Workspaces
 
 Workspace is a concept for managing and transfering simulator files: projects, packages, etc.
 
@@ -22,3 +24,18 @@ sudo ./clover_sim workspace list # List all workspaces
 sudo ./clover_sim workspace remove old_code # Remove workspace "old_code"
 sudo ./clover_sim ws export test # Export workspace "test", file with name test.tar.gz will apear
 ```
+
+## Internal comments
+
+After starting container via `launch` subcommand you can use these commands inside it:
+
+-  `help`    - show this help
+-  `exit`    - shutdowns cloversim
+-  `start`   - start simulator (gazebo, clover, etc.)
+-  `stop`    - stop simulator (gazebo, clover, etc.)
+-  `restart` - restart the simulator (gazebo, clover, etc.)
+-  `rget`    - get current randomzation
+-  `rset`    - set randomzation to value from second argument
+-  `rnew`    - generate new random randomzation
+-  `score`   - show current task scoring
+-  `run`     - run user program (runs /home/clover/run.sh inside clover0 container)
