@@ -1,7 +1,6 @@
-# Clover sim
-## Features
-![https://i.imgur.com/AUTIJBg.png](https://i.imgur.com/AUTIJBg.png)
+![Cloversim banner](./banner.png)
 
+## Features
 Simple and powerful tool for Clover simulation with workspaces and tasks.
 
 Key features:
