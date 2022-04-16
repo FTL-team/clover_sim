@@ -1,13 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
-	"time"
-	"context"
+	"strings"
+	"sync"
 )
 
 type Container struct {
@@ -101,7 +103,7 @@ func (container *Container) Destroy() {
 	os.RemoveAll(container.Path)
 }
 
-func (container *Container) GetLauncher() (*exec.Cmd, error) {
+func (container *Container) GetLauncher(notifySock string) (*exec.Cmd, error) {
 	nspawnArgs := []string{}
 
 	nspawnArgs = append(nspawnArgs, "--machine", container.Name)
@@ -123,23 +125,66 @@ func (container *Container) GetLauncher() (*exec.Cmd, error) {
 	for _, mount := range readwriteMounts {
 		nspawnArgs = append(nspawnArgs, fmt.Sprintf("--bind=%s", mount))
 	}
-
+	nspawnArgs = append(nspawnArgs, "--notify-ready=yes")
 	nspawnArgs = append(nspawnArgs, "--boot")
 	nspawnArgs = append(nspawnArgs, "clover_sim")
 
 	container.Logger.Verbose("Systemd-nspawn options: %s", nspawnArgs)
 
 	cmd := exec.Command("systemd-nspawn", nspawnArgs...)
+	cmd.Env = append(cmd.Env, "NOTIFY_SOCKET=" + notifySock)
 	cmd.Dir = path.Join(container.Path, "rootfs")
 
 	return cmd, nil
 }
 
+
+func listenNotifySock(notifySock string, notifyChan chan string, logger *Logger) {
+	os.Remove(notifySock)
+	l, err := net.ListenPacket("unixgram", notifySock)
+	if err != nil {
+		logger.Error("listen error: %s", err)
+	}
+	defer l.Close()
+
+
+	for {
+		buf := make([]byte, 4096)
+		l.ReadFrom(buf)
+
+		if err != nil {
+			continue
+		}
+		notifies := strings.Split(string(buf), "\n")
+		for _, notify := range notifies {
+			notifyChan <- notify
+		}
+	}
+}
+
 func (container *Container) Run(ctx context.Context) error {
+	notifySock := container.ContainerFile("notify.sock")
+	notifyChan := make(chan string)
+	go listenNotifySock(notifySock, notifyChan, container.Logger)
+
+	ready := false
+	readyWait := sync.WaitGroup{}
+	readyWait.Add(1)
+	go func() {
+		for {
+			stat := <-notifyChan
+			if stat == "READY=1" {
+				if !ready {
+					ready = true
+					readyWait.Done()
+				}
+			}
+		}
+	}()
 
 	container.Logger.Info("Launching container: %s ", container.Name)
  
-	cmd, err := container.GetLauncher()
+	cmd, err := container.GetLauncher(notifySock)
 	if err != nil {
 		container.Logger.Error("Failed to launch container: %s", err)
 		return err
@@ -156,14 +201,13 @@ func (container *Container) Run(ctx context.Context) error {
 	}()
 
 	go func() {
-		time.Sleep(800 * time.Millisecond)
+		readyWait.Wait()
 		for _, plugin := range container.Plugins {
 			if plugin.RunOnBoot != nil {
 				go plugin.RunOnBoot(container)
 			}
 		}
 	}()
-
 	err = cmd.Run()
 	Running = false
 	if err != nil {
