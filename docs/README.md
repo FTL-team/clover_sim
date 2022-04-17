@@ -11,9 +11,10 @@ Key features:
 - User code for clover doesn't have access to gazebo and can't cheat
 
 ## Installation
-> Note for non-linux users, we recommend to install linux in dual-boot, but in case you don't have ability to instal it:
-> If you are using Windows 10 or higher check [WSL docs section](./wsl.md)  
-> In other case use vmware virtual machine with ubuntu 20.04 or higher
+> Note for non-linux users, we recommend to install linux in dual-boot, but in case you don't have ability to instal: 
+> * If you are using Windows 10 or higher check [WSL docs section](/wsl.md)
+> * In other case use vmware virtual machine with ubuntu 20.04 or higher
+
 
 Dependencies:
 - curl

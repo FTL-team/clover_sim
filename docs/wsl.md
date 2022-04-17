@@ -30,6 +30,8 @@
 
 ## Running cloversim
 1. Launch VcXsrv:
+   
+   
    ![Options](./assets/vcxsrv.png)
 
 2. Run this code in one wsl terminal:
