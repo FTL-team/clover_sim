@@ -38,9 +38,7 @@ func SetupNetwork() (*NetworkConfig, error) {
 		{"ip", "addr", "add", "192.168.77.1/24", "dev", net.BridgeName},
 		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
 		{"sysctl", "-w", "net.ipv6.conf.all.forwarding=1"},
-		{"nft", "add", "table", "cloversim"},
-		{"nft", "add", "chain", "cloversim", "nat", "{type nat hook postrouting priority srcnat; policy accept; }"},
-		{"nft", "add", "rule", "cloversim", "nat", "ip", "saddr", "192.168.77.1/24", "oif", "!=", net.BridgeName, "masquerade"},
+		{"iptables", "-t", "nat", "-A", "POSTROUTING", "-s", "192.168.77.1/24", "!", "-o", net.BridgeName, "-j", "MASQUERADE"},
 	}
 
 	err := ExecCommands(setupCommands)
@@ -79,7 +77,6 @@ func (net *NetworkConfig) Destroy() error {
 	HostLogger.Info("Destroying network")
 	return ExecCommands([][]string{
 		{"ip", "link", "del", "name", net.BridgeName},
-		{"nft", "flush", "table", "cloversim_nat"},
 	})
 }
 
@@ -127,9 +124,11 @@ func (net *NetworkConfig) GetNetworkPlugin(container *Container, desiredIP int) 
 			Description: "Network setup",
 		})
 
-		err := cmd.Run()
+		out, err := cmd.CombinedOutput()
 		if err == nil {
 			container.Logger.Verbose("Container network ready: %s", ip)
+		}else{
+			container.Logger.Error("Network setup failed: %s, output: \n%s", err, out)
 		}
 
 		return err

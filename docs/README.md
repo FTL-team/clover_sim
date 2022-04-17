@@ -1,7 +1,6 @@
-# Clover sim
-## Features
-![https://i.imgur.com/AUTIJBg.png](https://i.imgur.com/AUTIJBg.png)
+![Cloversim banner](./banner.png)
 
+## Features
 Simple and powerful tool for Clover simulation with workspaces and tasks.
 
 Key features:
@@ -12,19 +11,30 @@ Key features:
 - User code for clover doesn't have access to gazebo and can't cheat
 
 ## Installation
+> Note for non-linux users, we recommend to install linux in dual-boot, but in case you don't have ability to instal it:
+> If you are using Windows 10 or higher check [WSL docs section](./wsl.md)  
+> In other case use vmware virtual machine with ubuntu 20.04 or higher
 
-To install this tool just run these commands:
+Dependencies:
+- curl
+- wget
+- systemd-nspawn
+- systemd-run
+- iproute2
+- iptables
+- OpenGL drivers
+- virglrenderer
+
+Install dependency on Ubuntu:
+```bash
+sudo apt update && sudo apt install systemd-container libvirglrenderer1 iptables mesa-utils socat wget unzip libegl1-mesa
+```
+
+To install cloversim tool just run these commands:
 ```bash
 mkdir clover_sim && cd clover_sim
 curl https://raw.githubusercontent.com/FTL-team/clover_sim/main/setup.sh | bash
 ```
-
-Dependencies:
-- curl
-- systemd-nspawn
-- systemd-run
-- nftables
-- iproute2
 
 ## Starting simulator
 

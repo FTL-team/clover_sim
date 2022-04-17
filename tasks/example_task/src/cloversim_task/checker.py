@@ -13,9 +13,9 @@ landing = ScoreGroup('Landing',
 
 color_markers_task = ScoreTask('Color markers order', 10)
 
-status_markers = []
+status_markers_scores = []
 for i in range(5):
-  status_markers.append(
+  status_markers_scores.append(
       ScoreGroup(f'Status marker {i+1}', [
           ScoreTask('Correct status', 0.6),
           ScoreTask('Correct position', 1.4),
@@ -33,7 +33,7 @@ def status_marker_update(group, tasks):
 
 
 status_markers_group = ScoreGroup('Status markers',
-                                  status_markers,
+                                  status_markers_scores,
                                   update_function=create_update(FailMode.ALL))
 
 qrcode_task = ScoreTask('QR code', 10)
@@ -80,7 +80,7 @@ class TaskServer(SimpleXMLRPCServer):
     if correct_order == 0:
       color_markers_task.mark_failed()
     else:
-      color_markers_task.set_score(10)
+      color_markers_task.set_score(correct_order)
 
     return 0
 
@@ -98,17 +98,19 @@ class TaskServer(SimpleXMLRPCServer):
             correct_id)
 
       dist = distance_between_points(predicted_pos, correct_pos)
+      marker_score = status_markers_scores[correct_id]
       if dist > 0.5:
-        status_markers[correct_id]['Correct status'].mark_failed()
-        status_markers[correct_id]['Correct position'].mark_failed()
+        marker_score['Correct status'].mark_failed()
+        marker_score['Correct position'].mark_failed()
       else:
-        if markers[predicted_id][2]:
-          status_markers[correct_id]['Correct status'].set_score(0.6)
+        print(markers[predicted_id][0], status_markers[correct_id])
+        if markers[predicted_id][0] == status_markers[correct_id]:
+          marker_score['Correct status'].set_score(0.6)
         else:
-          status_markers[correct_id]['Correct status'].mark_failed()
+          marker_score['Correct status'].mark_failed()
 
         dist_score = (0.45 - max(dist - 0.05, 0)) / 0.45 * 1.4
-        status_markers[correct_id]['Correct position'].set_score(dist_score)
+        marker_score['Correct position'].set_score(dist_score)
     return 0
 
 

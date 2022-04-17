@@ -97,6 +97,7 @@ qrcode_texture = qrcode.make("Information you want to encode in QR code").get_im
 image_textures = ImageTextures({
     "qrcode": qrcode_texture
 })
+image_textures.generate_materials()
 WORLD.add(
     Box("qrcode",
         size=(1, 1, 0.001),
