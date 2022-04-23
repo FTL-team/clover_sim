@@ -11,10 +11,13 @@ Key features:
 - User code for clover doesn't have access to gazebo and can't cheat
 
 ## Installation
+
+
 > Note for non-linux users, we recommend to install linux in dual-boot, but in case you don't have ability to instal: 
 > * If you are using Windows 10 or higher check [WSL docs section](/wsl.md)
 > * In other case use vmware virtual machine with ubuntu 20.04 or higher
 
+> Currently installation is supported only on x86 systems
 
 Dependencies:
 - curl
@@ -36,6 +39,8 @@ To install cloversim tool just run these commands:
 mkdir clover_sim && cd clover_sim
 curl https://raw.githubusercontent.com/FTL-team/clover_sim/main/setup.sh | bash
 ```
+
+In case you have encounter problems with install script, check [manual installation section](/manual_install.md).
 
 ## Starting simulator
 
