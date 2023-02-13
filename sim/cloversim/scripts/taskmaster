@@ -8,6 +8,7 @@ import socket
 
 myargv = rospy.myargv(argv=sys.argv)
 
+
 def generate_world():
   from cloversim_task.world import WORLD
   WORLD.save()
@@ -17,6 +18,7 @@ def generate_world():
 def run_checker():
   import cloversim_task.checker
 
+
 cmd = myargv[1]
 
 if cmd == "generate_world":
@@ -25,8 +27,8 @@ if cmd == "generate_world":
 if cmd == "check_task":
   run_checker()
 
-
 if cmd == "wait_ready":
+  print("Waiting for  copter to come online...")
   with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind(("0.0.0.0", 9988))
     s.listen()
@@ -37,9 +39,11 @@ if cmd == "wait_ready":
       if data[:5] == "ready":
         print("Ready")
         sys.exit(0)
+  print("Success")
 
 if cmd == "notify_ready":
-  for i in range(16):
+  print("Waiting for simulator to come online...")
+  for i in range(32):
     try:
       with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect(("192.168.77.10", 9988))
@@ -47,3 +51,4 @@ if cmd == "notify_ready":
       break
     except:
       time.sleep(i * 0.1)
+  print("Success")

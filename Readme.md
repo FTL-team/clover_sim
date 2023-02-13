@@ -1,4 +1,4 @@
-![Cloversim banner](./docs/banner.png)
+![Cloversim banner](./banner.png)
 
 ## Features
 Simple and powerful tool for Clover simulation with workspaces and tasks.
@@ -12,57 +12,53 @@ Key features:
 
 ## Installation
 
-
-> Note for non-linux users, we recommend to install linux in dual-boot, but in case you don't have ability to instal: 
-> * If you are using Windows 10 or higher check [WSL docs section](./docs/wsl.md)
-> * In other case use vmware virtual machine with ubuntu 20.04 or higher
+### Dependencies
 
 > Currently installation is supported only on x86 systems
 
+> For windows users: you can install cloversim in [WSL 2](https://learn.microsoft.com/en-us/windows/wsl/install), to run gazebo gui client [WSLg](https://github.com/microsoft/wslg) is required.
+>
+> In case you can't use linux or WSL you can install cloversim in Virtual Machine, don't forget to enable 3d acceleration and allocate enough resources
+
 Dependencies:
-- curl
-- wget
-- systemd-nspawn
-- systemd-run
+- runc
+- xauth
 - iproute2
 - iptables
 - OpenGL drivers
 - virglrenderer
+- tar
 
 Install dependency on Ubuntu:
 ```bash
-sudo apt update && sudo apt install systemd-container libvirglrenderer1 iptables mesa-utils socat wget unzip libegl1-mesa
+sudo apt update && sudo apt install runc libvirglrenderer1 iptables mesa-utils procps xauth tar
 ```
 
-To install cloversim tool just run these commands:
-```bash
-mkdir clover_sim && cd clover_sim
-curl https://raw.githubusercontent.com/FTL-team/clover_sim/main/setup.sh | bash
-```
+### Installation process
+1. Download and unpack archive from [cloversim releases](https://github.com/FTL-team/clover_sim/releases)
+2. Download `base.sqsh` from [cloversim_basefs releases](https://github.com/FTL-team/clover_sim_basefs/releases) and place it in same folder as contents of archive of step 1
+3. Done!!! You can now run simulator
 
-In case you have encounter problems with install script, check [manual installation section](./docs/manual_install.md).
 
 ## Starting simulator
 
-1. Go to `clover_sim` directory
+1. Go to `cloversim` directory
 2. Create workspace
     ```bash
-    sudo ./clover_sim workspace create test
+    sudo ./cloversim workspace create test
     ```
 3. Launch simulator container
     - Simple start:
     ```bash
-    sudo  ./clover_sim launch test
+    sudo  ./cloversim launch test
     ```
     - Start with some task:
     ```bash
-    sudo ./clover_sim launch --task example_task test
+    sudo ./cloversim launch --task example_task test
     ```
     
 > You can connect to your simulated clover drone using `ssh clover@192.168.77.10` password: **clover**
 
 4. Enjoy simulator
 
-
-
-> For more information check `sudo ../clover_sim help`
+> For more information check `sudo ../cloversim help`

@@ -9,25 +9,27 @@ if not os.path.exists(TASK_PATH):
   os.mkdir(TASK_PATH)
   os.mkdir(TASK_PATH + "/models")
 
-SEED = 0
-def load_seed():
-  seed_str = ""
-  with open("/home/clover/task_seed", "r") as f:
-    seed_str = f.read()
+RANDOMIZATION = 0
+def load_rand():
+  global RANDOMIZATION
+
+  rand_str = ""
+  with open("/home/clover/task_randomization", "r") as f:
+    rand_str = f.read()
 
   # Minecraft seeding algorithm
   # More: https://docs.oracle.com/javase/8/docs/api/java/lang/String.html#hashCode--
   try:
-    SEED = int(seed_str)
+    RANDOMIZATION = int(rand_str)
   except:
-    SEED = 1
-    l = len(seed_str) - 1
-    for i, s in enumerate(seed_str):
-      SEED += ord(s) * (31**(l - i))
+    RANDOMIZATION = 1
+    l = len(rand_str) - 1
+    for i, s in enumerate(rand_str):
+      RANDOMIZATION += ord(s) * (31**(l - i))
 
-  SEED &= 0xFFFFFFFF  # Limit to 2**32 - 1
-  random.seed(SEED)
-  np.random.seed(SEED)
+  RANDOMIZATION &= 0xFFFFFFFF  # Limit to 2**32 - 1
+  random.seed(RANDOMIZATION)
+  np.random.seed(RANDOMIZATION)
 
-if os.path.exists("/home/clover/task_seed"):
-  load_seed()
+if os.path.exists("/home/clover/task_randomization"):
+  load_rand()

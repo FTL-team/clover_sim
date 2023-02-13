@@ -2,7 +2,7 @@
 <package format="2">
   <name>example_task</name>
   <version>0.0.3</version>   
-  <description>The cloversim example task</description>
+  <description>Complex task showing off cloversim features</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
