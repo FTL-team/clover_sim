@@ -1,7 +1,7 @@
 # Tasks
 ## Tasks creation
 To create a task:
-1. Navigate to the `clover_sim/tasks` directory
+1. Navigate to the `tasks` directory
 2. Copy `example_task` folder and rename it
 3. Change name in `package.xml` and in `CMakeLists.txt` in line `project(example_task)`
 
@@ -9,7 +9,7 @@ To create a task:
 
 4. Write a task based on example task
 
-> After changes in task you should change something in `package.xml`(for example just add extra space) and restart clover_sim(task should be rebuilt)
+> After changes in task you should change something in `package.xml`(for example just add extra space) and restart cloversim(task should be rebuilt)
 
 ## Randomizations utils
 

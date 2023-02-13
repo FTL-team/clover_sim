@@ -7,8 +7,8 @@ Workspace is a concept for managing and transfering simulator files: projects, p
 
 You can manage your workspaces using **workspaces** subcommands:
 - `workspace create test` - Create a new workspace, name as param
-- `workspace list` - get list of all workspaces
 - `workspace remove test` - Remove a workspace, name as param
+- `workspace list` - get list of all workspaces
 - `workspace export test` - Export a workspace as tar.gz archive, name as param
 - `workspace import ./test.tar.gz` - Import a workspace from tar.gz archive, path to archieve as param
 - `workspace duplicate old new` - Duplicate a workspace
@@ -19,13 +19,22 @@ You can manage your workspaces using **workspaces** subcommands:
 Some examples:
 
 ```bash
-sudo ./clover_sim ws create test # Create workspace "test"
-sudo ./clover_sim workspace list # List all workspaces
-sudo ./clover_sim workspace remove old_code # Remove workspace "old_code"
-sudo ./clover_sim ws export test # Export workspace "test", file with name test.tar.gz will apear
+sudo ./cloversim ws create test # Create workspace "test"
+sudo ./cloversim workspace list # List all workspaces
+sudo ./cloversim workspace remove old_code # Remove workspace "old_code"
+sudo ./cloversim ws export test # Export workspace "test", file with name test.tar.gz will apear
 ```
 
-## Internal comments
+## Launch and task
+
+To launch a simulation `launch` subcommand is used. `launch` subcommand accepts one required argument that contains workspace used for simulation. There is also optional argument called `--task` that contains path of task(relative to `tasks`), default value is `base_task`. Example usage:
+```bash
+launch --task=example_task workspace_name
+```
+
+To find currently available tasks you can use `task list`. This command will show list of available tasks with their description.
+
+# Launch commands
 
 After starting container via `launch` subcommand you can use these commands inside it:
 
@@ -38,4 +47,5 @@ After starting container via `launch` subcommand you can use these commands insi
 -  `rset`    - set randomzation to value from second argument
 -  `rnew`    - generate new random randomzation
 -  `score`   - show current task scoring
--  `run`     - run user program (runs /home/clover/run.sh inside clover0 container)
+-  `tpath`   - get path of file in task (README.md by default)
+-  `tread`   - read file in task (README.md by default)
