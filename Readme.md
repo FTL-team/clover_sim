@@ -36,7 +36,7 @@ sudo apt update && sudo apt install runc libvirglrenderer1 iptables mesa-utils p
 
 ### Installation process
 1. Download and unpack archive from [cloversim releases](https://github.com/FTL-team/clover_sim/releases)
-2. Download `base.sqsh` from [cloversim_basefs releases](https://github.com/FTL-team/clover_sim_basefs/releases) and place it in same folder as contents of archive of step 1
+2. Download [base.sqsh](https://drive.google.com/file/d/1g2m74UiFM8sQkwyFyCn8fJp3ZVH7-PXl/view?usp=sharing) and place it in same folder as contents of archive of step 1
 3. Done!!! You can now run simulator
 
 
