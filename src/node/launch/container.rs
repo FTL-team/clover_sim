@@ -86,7 +86,11 @@ impl<'a> Container<'a> {
             bind_entries.push(BaseBind::RW(
                 launch.get_score_entry().path().clone(),
                 String::from("/home/clover/task_score.json"),
-            ))
+            ));
+            bind_entries.push(BaseBind::RW(
+                launch.get_rand_entry().path().clone(),
+                String::from("/home/clover/task_randomization"),
+            ));
         }
 
         let base = BaseContainer::start(BaseContainerOptions {

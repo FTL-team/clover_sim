@@ -226,6 +226,10 @@ impl Launch {
         &self.score_entry
     }
 
+    pub fn get_rand_entry<'a>(&'a self) -> &'a WorkEntry {
+        &self.rand_entry
+    }
+
     pub fn create_event_reciever(&self) -> broadcast::Receiver<LaunchEvent> {
         self.handle.create_event_reciever()
     }
