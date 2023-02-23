@@ -1,5 +1,5 @@
 # Base clover task
-
+![visualiztion](vis.png)
 
 This is base task for cloversim that provides world with 10 by 10 meters aruco map. 
 

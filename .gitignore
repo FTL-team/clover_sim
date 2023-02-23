@@ -5,3 +5,6 @@ base.sqhsh
 cloversim
 target
 base.sqsh
+src/lib/bindings
+src/web/dist
+src/web/node_modules

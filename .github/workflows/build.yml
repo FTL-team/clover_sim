@@ -11,19 +11,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: x86_64-unknown-linux-musl
 
-      - uses: actions-rs/cargo@v1
+      - uses: actions/setup-node@v3
         with:
-          command: build
-          args: --release --all-features
+          node-version: 18
+      
+      - name: Install dependencies
+        run: |
+          sudo apt install -y musl-tools
+
+      - name: Build
+        run: |
+          ./build_release.sh
           
       - name: Copy cloversim to root and create zip
         run: |
-          cp ./target/release/cloversim ./cloversim
-          zip -r cloversim.zip virgl tasks sim cloversim
+          cp ./target/x86_64-unknown-linux-musl/release/cloversim ./cloversim
+          mkdir workspaces containers
+          zip -r cloversim.zip virgl tasks sim cloversim workspaces containers
       
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.0

@@ -1,0 +1,29 @@
+{
+  "name": "cloversim_web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "start": "vite"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^4.5.8",
+    "@fontsource/roboto-mono": "^4.5.10",
+    "@solidjs/router": "^0.7.0",
+    "@suid/icons-material": "^0.5.9",
+    "@suid/material": "^0.10.2",
+    "@types/dompurify": "^2.4.0",
+    "@types/marked": "^4.0.8",
+    "add": "^2.0.6",
+    "dompurify": "^3.0.0",
+    "marked": "^4.2.12",
+    "solid-js": "^1.6.7",
+    "yarn": "^1.22.19"
+  },
+  "devDependencies": {
+    "@suid/vite-plugin": "^0.1.2",
+    "typescript": "^4.8.2",
+    "vite": "^4.0.4",
+    "vite-plugin-solid": "2.5.0"
+  }
+}

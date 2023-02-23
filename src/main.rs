@@ -1,11 +1,17 @@
-use node::{LocalRpc};
+use std::sync::Arc;
 
-mod node;
-mod filelock;
-mod cli;
+use cloversim_lib::{err::NodeError, rpc::NodeRpc};
+use cloversim_node::LocalRpc;
+
+use tokio;
+
+fn get_local_rpc() -> Result<Arc<dyn NodeRpc>, NodeError> {
+    Ok(Arc::new(LocalRpc::new()))
+}
 
 #[tokio::main]
 async fn main() {
-    let rpc = LocalRpc::new();
-    cli::run(&rpc).await;
+    // let rpc =
+    // cloversim_rrp::run(rpc.clone()).await;
+    cloversim_cli::run(get_local_rpc).await;
 }
