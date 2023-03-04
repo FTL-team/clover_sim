@@ -50,6 +50,8 @@ impl X11 {
             ));
         }
 
+        virgl_entry.set_permissions(Permissions::from_mode(0o666)).await?;
+
         let display_env = match env::var("DISPLAY") {
             Ok(v) => v,
             Err(err) => return Err(NodeError::NoX11Display(err.to_string())),
