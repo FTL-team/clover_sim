@@ -24,6 +24,7 @@ pub struct LocalRpc {
 }
 
 impl LocalRpc {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         LocalRpc {
             launch: Arc::new(SimulatorHandle::new()),

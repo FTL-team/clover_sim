@@ -72,7 +72,7 @@ impl Task {
             let current_path = paths_to_check.pop();
             match current_path {
                 Some(current_path) => {
-                    if (&current_path).join("package.xml").exists() {
+                    if current_path.join("package.xml").exists() {
                         tasks.push(current_path);
                     } else {
                         let errmap = IoNodeError::create_fs_errmap(&current_path);
@@ -97,7 +97,7 @@ impl Task {
         let tasks = tokio::task::spawn_blocking(Self::find_all_paths)
             .await
             .map_err(JoinNodeError::from)??;
-        let tasks = tasks.into_iter().map(|path| Self::load(path));
+        let tasks = tasks.into_iter().map(Self::load);
         let tasks: NodeResult<Vec<Task>> = join_all(tasks).await.into_iter().collect();
         tasks
     }

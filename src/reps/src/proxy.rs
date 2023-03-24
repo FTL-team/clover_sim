@@ -112,7 +112,7 @@ pub fn tcp_proxy_route(target: String) -> MethodRouter<(), Body> {
                     if let Message::Close(_) = msg {
                         break;
                     }
-                    stream.write(&msg.into_data()).await.unwrap();
+                    stream.write_all(&msg.into_data()).await.unwrap();
                     // msg.
                 }
             }

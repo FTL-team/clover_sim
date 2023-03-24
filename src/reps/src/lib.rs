@@ -112,7 +112,7 @@ pub async fn get_api_routes(rpc: Arc<dyn NodeRpc>) -> Router {
                             let Ok(msg) = serde_json::to_string(&msg) else {
                                 continue;
                             };
-                            if let Err(_) = socket.send(Text(msg)).await {
+                            if socket.send(Text(msg)).await.is_err() {
                                 break;
                             }
                         }
@@ -143,10 +143,10 @@ pub async fn get_api_routes(rpc: Arc<dyn NodeRpc>) -> Router {
         }),
     );
 
-    return app.layer(SetResponseHeaderLayer::if_not_present(
+    app.layer(SetResponseHeaderLayer::if_not_present(
         header::CONNECTION,
         header::HeaderValue::from_static("Keep-Alive"),
-    ));
+    ))
 }
 
 async fn serve_webui(Path(asset): Path<String>) -> Result<Response, StatusCode> {

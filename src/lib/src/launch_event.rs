@@ -35,7 +35,7 @@ pub enum LaunchEvent {
 impl LaunchEvent {
     pub fn format_main(&self) -> Option<String> {
         Some(match self {
-            LaunchEvent::Poweroff => format!("Exiting"),
+            LaunchEvent::Poweroff => String::from("Exiting"),
             LaunchEvent::ContainerExited(name) => format!("Container {} exited", name),
             LaunchEvent::ContainerReady(name) => format!("Container {} is ready", name),
             LaunchEvent::ContainerStarted(name) => format!("Container {} started", name),
@@ -50,7 +50,7 @@ impl LaunchEvent {
                     SimulatorAction::Restart => "Restarting",
                 }
             ),
-            LaunchEvent::Finished => format!("Finished"),
+            LaunchEvent::Finished => String::from("Finished"),
 
             LaunchEvent::SetRand(rand) => format!("New randomization: {}", rand),
             LaunchEvent::Rand(rand) => format!("Current randomization: {}", rand),

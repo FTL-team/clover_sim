@@ -44,7 +44,7 @@ impl X11 {
             .spawn()
             .map_err(|x| NodeError::VirglError(x.to_string()))?;
 
-        if let Ok(_) = timeout(Duration::from_millis(200), virgl_server.wait()).await {
+        if timeout(Duration::from_millis(200), virgl_server.wait()).await.is_ok() {
             return Err(NodeError::VirglError(
                 String::from_utf8_lossy(&errlog.read().await?).to_string(),
             ));
@@ -57,7 +57,7 @@ impl X11 {
             Err(err) => return Err(NodeError::NoX11Display(err.to_string())),
         };
         let display_id = display_env
-            .strip_prefix(":")
+            .strip_prefix(':')
             .ok_or(NodeError::NoX11Display(String::from(
                 "Only local displays (strating with :) are supported",
             )))?;

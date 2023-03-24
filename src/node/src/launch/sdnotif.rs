@@ -43,7 +43,7 @@ impl SdNotifyListener {
         }
     }
 
-    pub fn get_path<'a>(&'a self) -> &'a PathBuf {
+    pub fn get_path(&self) -> &'_ PathBuf {
         self.targ.path()
     }
 }

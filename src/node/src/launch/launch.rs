@@ -175,7 +175,7 @@ impl Launch {
                 })
                 .collect();
             launch.broadcast_event(LaunchEvent::Finished)?;
-            if res.len() == 0 {
+            if res.is_empty() {
                 Ok(())
             } else {
                 Err(NodeError::ContainersError(res))
@@ -192,7 +192,7 @@ impl Launch {
         Ok(())
     }
 
-    pub fn overlay_entries<'a>(&'a self) -> Vec<&'a dyn OverlayEntry> {
+    pub fn overlay_entries(&self) -> Vec<&'_ dyn OverlayEntry> {
         vec![&self.base_entry]
     }
 
@@ -200,11 +200,11 @@ impl Launch {
         self.work_root.clone()
     }
 
-    pub fn network<'a>(&'a self) -> &'a Network {
+    pub fn network(&self) -> &'_ Network {
         &self.net
     }
 
-    pub fn x11<'a>(&'a self) -> &'a X11 {
+    pub fn x11(&self) -> &'_ X11 {
         &self.x11
     }
 
@@ -220,11 +220,11 @@ impl Launch {
         self.task_name.as_str()
     }
 
-    pub fn get_score_entry<'a>(&'a self) -> &'a WorkEntry {
+    pub fn get_score_entry(&self) -> &'_ WorkEntry {
         &self.score_entry
     }
 
-    pub fn get_rand_entry<'a>(&'a self) -> &'a WorkEntry {
+    pub fn get_rand_entry(&self) -> &'_ WorkEntry {
         &self.rand_entry
     }
 

@@ -110,7 +110,7 @@ impl LaunchCli {
                             };
                         }
                         Err(ReadlineError::Interrupted) => {
-                            writeln!(stdout, "")?;
+                            writeln!(stdout)?;
                             read_more = false;
 
                             #[allow(unused_must_use)] {
@@ -158,7 +158,7 @@ impl LaunchCli {
                 }
 
                 _ = ctrl_rx.recv() => {
-                    writeln!(stdout, "")?;
+                    writeln!(stdout)?;
                     readline.flush()?;
                     break;
                 }
@@ -168,7 +168,7 @@ impl LaunchCli {
         Ok(())
     }
 
-    fn map_cmd_to_event(parts: &Vec<&str>) -> Option<LaunchEvent> {
+    fn map_cmd_to_event(parts: &[&str]) -> Option<LaunchEvent> {
         Some(match parts[0] {
             "exit" => LaunchEvent::Poweroff,
 

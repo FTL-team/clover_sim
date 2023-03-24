@@ -1,5 +1,5 @@
 use std::{
-    path::PathBuf,
+    path::{PathBuf, Path},
     process::{ExitStatus, Stdio},
     sync::atomic::{self, AtomicBool},
     time::Duration,
@@ -49,7 +49,7 @@ pub struct BaseContainer {
 
 const BASE_RUNC_SERIALIZED: &str = include_str!("./base_runc.json");
 
-fn match_oci_spec_error(e: oci_spec::OciSpecError, path: &PathBuf) -> NodeError {
+fn match_oci_spec_error(e: oci_spec::OciSpecError, path: &Path) -> NodeError {
     match e {
         oci_spec::OciSpecError::Other(err) => NodeError::InternalError(err),
         oci_spec::OciSpecError::Io(err) => IoNodeError::create_fs_error(path, err),
@@ -60,10 +60,10 @@ fn match_oci_spec_error(e: oci_spec::OciSpecError, path: &PathBuf) -> NodeError 
     }
 }
 
-fn create_oci_spec_error_mapper<'a>(
-    path: &'a PathBuf,
-) -> impl Fn(oci_spec::OciSpecError) -> NodeError + 'a {
-    return |err| match_oci_spec_error(err, path);
+fn create_oci_spec_error_mapper(
+    path: &Path,
+) -> impl Fn(oci_spec::OciSpecError) -> NodeError + '_ {
+    |err| match_oci_spec_error(err, path)
 }
 
 impl BaseContainer {
@@ -130,7 +130,7 @@ impl BaseContainer {
             .spawn()
             .map_err(IoNodeError::create_errmap("<container launch>"))?;
 
-        if let Ok(_) = timeout(Duration::from_millis(500), child.wait()).await {
+        if timeout(Duration::from_millis(500), child.wait()).await.is_ok() {
             return Err(NodeError::ContainerCreateFailed(
                 String::from_utf8_lossy(&errlog_entry.read().await?).to_string(),
             ));
