@@ -1,0 +1,7 @@
+.taskDescription * {
+  max-width: 100%;
+}
+
+.taskDescription code {
+  border-radius: 16px;
+}
