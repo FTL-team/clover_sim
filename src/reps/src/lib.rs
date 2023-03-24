@@ -1,8 +1,10 @@
-use std::net::SocketAddr;
+mod proxy;
+
+use std::net::{Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use axum::extract::ws::Message::Text;
-use axum::extract::{ConnectInfo, Path, WebSocketUpgrade};
+use axum::extract::{Path, WebSocketUpgrade};
 use axum::headers::ContentType;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -98,7 +100,9 @@ pub async fn get_api_routes(rpc: Arc<dyn NodeRpc>) -> Router {
                                 continue;
                             };
                             let chan_rx_inactive = chan_rx.deactivate();
-                            chan_tx.try_broadcast(msg);
+                            #[allow(unused_must_use)] { 
+                                chan_tx.try_broadcast(msg);
+                            }
                             chan_rx = chan_rx_inactive.activate();
                         }
                         msg = chan_rx.recv() => {
@@ -108,13 +112,16 @@ pub async fn get_api_routes(rpc: Arc<dyn NodeRpc>) -> Router {
                             let Ok(msg) = serde_json::to_string(&msg) else {
                                 continue;
                             };
-                            if let Err(e) = socket.send(Text(msg)).await {
+                            if let Err(_) = socket.send(Text(msg)).await {
                                 break;
                             }
                         }
                     };
                 }
-                socket.close().await;
+
+                #[allow(unused_must_use)] {
+                    socket.close().await;
+                }
             })
         }),
     );
@@ -155,15 +162,35 @@ async fn serve_webui(Path(asset): Path<String>) -> Result<Response, StatusCode> 
 }
 
 pub async fn run(rpc: Arc<dyn NodeRpc>) {
-    // build our application with a route
     let app = Router::new()
         .nest("/cloversim_api", get_api_routes(rpc).await)
+        .nest_service(
+            "/gzweb/",
+            proxy::http_proxy_service(String::from("http://192.168.77.2:7777")),
+        )
+        .nest_service(
+            "/webterm/",
+            proxy::http_proxy_service(String::from("http://192.168.77.10:7776")),
+        )
+        .nest_service(
+            "/ide/",
+            proxy::http_proxy_service(String::from("http://192.168.77.10:7778")),
+        )
+        .nest_service(
+            "/ros",
+            proxy::http_proxy_service(String::from("http://192.168.77.10:9090")),
+        )
+        .route(
+            "/ssh",
+            proxy::tcp_proxy_route(String::from("192.168.77.10:22")),
+        )
         .route("/", get(|| serve_webui(Path(String::from("index.html")))))
         .route("/*file", get(serve_webui));
-    let addr = SocketAddr::from(([127, 0, 0, 1], 7777));
+    let addr = SocketAddr::from((Ipv6Addr::LOCALHOST, 7777));
 
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    let server = axum::Server::bind(&addr)
+        .serve(app.into_make_service());
+    println!("Cloversim is listening on http://localhost:7777");
+    let res: Result<(), hyper::Error> = server.await;
+    res.unwrap();
 }
