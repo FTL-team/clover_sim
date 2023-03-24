@@ -297,6 +297,7 @@ dependencies = [
  "axum",
  "cloversim_lib",
  "http",
+ "hyper",
  "include_dir",
  "mime_guess",
  "serde_json",
