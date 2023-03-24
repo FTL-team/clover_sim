@@ -31,9 +31,14 @@
         <arg name="use_clover_physics" value="$(arg use_clover_physics)"/>
     </include>
 
+    <!-- Connection with clover container -->
     <node name="sim_proxy" pkg="cloversim" type="sim_proxy" >
         <env name="PROXY_ADDRESS" value="http://clover0:11311"/>
     </node>
 
+    <!-- Check task completion and generate scores -->
     <node name="taskmaster" args="check_task" pkg="cloversim" type="taskmaster" />
+
+    <!-- GZWeb -->
+    <node name="gzweb" pkg="gzweb" type="gzweb.sh" />
 </launch>
