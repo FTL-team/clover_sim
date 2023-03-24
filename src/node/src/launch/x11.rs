@@ -134,6 +134,8 @@ impl X11 {
 
 impl Drop for X11 {
     fn drop(&mut self) {
-        self.virgl_server.start_kill();
+        #[allow(unused_must_use)] {
+            self.virgl_server.start_kill();
+        }
     }
 }

@@ -1,9 +1,4 @@
-use std::{
-    fs::File,
-    future::Future,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fs::File, path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
 use cloversim_lib::{err::NodeError, rpc::NodeRpc};

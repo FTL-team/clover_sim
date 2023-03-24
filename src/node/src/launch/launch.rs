@@ -17,10 +17,7 @@ use cloversim_lib::{
 };
 use futures::future;
 use rand::random;
-use tokio::{
-    select,
-    time::{interval, Interval},
-};
+use tokio::{select, time::interval};
 
 use crate::{
     clean::Cleaner,
