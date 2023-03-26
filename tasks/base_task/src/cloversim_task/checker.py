@@ -38,10 +38,11 @@ def mark_point(point, completed):
 
 
 current_point = 0
-
+last_land_position = (0, 0, 0)
 
 def process_position():
   global current_point
+  global last_land_position
 
   pos = get_clover_position()
   is_still = is_clover_still(pos)
@@ -51,6 +52,7 @@ def process_position():
   x, y, z = position.x, position.y, position.z
 
   if is_still and not armed:
+    last_land_position = (x, y, z)
     if distance_between_points((x, y), (0, 0)) < 0.2:
       if not landing.failed:
         landing.set_score(10)
@@ -62,11 +64,23 @@ def process_position():
 
   nearest_point = -1
   cur_dist = 0
+  
+  # Calculate current position relative to takeoff position
+  x -= last_land_position[0]
+  y -= last_land_position[1]
+  z -= last_land_position[2]
+
+  # If we are close enough on height then we can ignore it
+  if abs(x - 1) < 0.2:
+    z = 1
+
+  
   for i, p in enumerate(target_points):
     d = distance_between_points(p, (x, y, z))
     if d < cur_dist or cur_dist == 0:
       nearest_point = i
       cur_dist = d
+  
   if nearest_point == current_point or nearest_point == (current_point - 1) % 4:
     # Too far from point
     if cur_dist > 1.5:
@@ -83,6 +97,7 @@ def process_position():
 while True:
   try:
     process_position()
-  except:
+  except Exception as E:
+    print(E)
     pass
   rospy.sleep(0.2)

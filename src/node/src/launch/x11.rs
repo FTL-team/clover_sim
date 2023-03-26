@@ -44,18 +44,20 @@ impl X11 {
             .spawn()
             .map_err(|x| NodeError::VirglError(x.to_string()))?;
 
-        if let Ok(_) = timeout(Duration::from_millis(200), virgl_server.wait()).await {
+        if timeout(Duration::from_millis(200), virgl_server.wait()).await.is_ok() {
             return Err(NodeError::VirglError(
                 String::from_utf8_lossy(&errlog.read().await?).to_string(),
             ));
         }
+
+        virgl_entry.set_permissions(Permissions::from_mode(0o666)).await?;
 
         let display_env = match env::var("DISPLAY") {
             Ok(v) => v,
             Err(err) => return Err(NodeError::NoX11Display(err.to_string())),
         };
         let display_id = display_env
-            .strip_prefix(":")
+            .strip_prefix(':')
             .ok_or(NodeError::NoX11Display(String::from(
                 "Only local displays (strating with :) are supported",
             )))?;
@@ -132,6 +134,8 @@ impl X11 {
 
 impl Drop for X11 {
     fn drop(&mut self) {
-        self.virgl_server.start_kill();
+        #[allow(unused_must_use)] {
+            self.virgl_server.start_kill();
+        }
     }
 }

@@ -87,10 +87,10 @@ impl NodeRpc for RemoteRpc {
             .await
             .map_err(req_errmap)?
     }
-    async fn export_workspace(&self, name: String, to: File) -> NodeResult<()> {
+    async fn export_workspace(&self, _name: String, _to: File) -> NodeResult<()> {
         todo!();
     }
-    async fn import_workspace(&self, from: File) -> NodeResult<String> {
+    async fn import_workspace(&self, _from: File) -> NodeResult<String> {
         todo!();
     }
     async fn duplicate_workspace(&self, name: String, newname: String) -> NodeResult<()> {

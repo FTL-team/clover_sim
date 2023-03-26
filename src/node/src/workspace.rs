@@ -46,11 +46,11 @@ impl Workspace {
         return Path::new(WORKSPACES_DIR).join(name);
     }
 
-    fn create_workspace_lock(path: &PathBuf) -> NodeResult<FileLock> {
+    fn create_workspace_lock(path: &Path) -> NodeResult<FileLock> {
         match FileLock::lock(path) {
             Ok(lock) => Ok(lock),
             Err(err) => {
-                return Err(match err.kind() {
+                Err(match err.kind() {
                     std::io::ErrorKind::AlreadyExists => NodeError::WorkspaceIsUsed,
                     _ => IoNodeError::create_fs_error(&path.join("_.lock"), err),
                 })
@@ -58,7 +58,7 @@ impl Workspace {
         }
     }
 
-    async fn load_workspace_meta(path: &PathBuf, name: &str) -> NodeResult<WorkspaceSerialized> {
+    async fn load_workspace_meta(path: &Path, name: &str) -> NodeResult<WorkspaceSerialized> {
         let meta_path = path.join("workspace.yml");
         let meta_path_string = String::from(meta_path.to_str().unwrap_or("???"));
 
@@ -100,7 +100,7 @@ impl Workspace {
                 .collect()
         })
         .await
-        .map_err(|x| JoinNodeError::from(x))?
+        .map_err(JoinNodeError::from)?
     }
 
     pub async fn load(dirname: &str) -> NodeResult<Self> {

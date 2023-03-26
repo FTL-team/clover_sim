@@ -6,5 +6,6 @@
   "python.analysis.extraPaths": [
     "./sim/cloversim/src",
     "./base_fs/base/opt/ros/noetic/lib/python3/dist-packages"
-  ]
+  ],
+  "rust-analyzer.check.command": "clippy"
 }

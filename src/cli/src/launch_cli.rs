@@ -36,7 +36,7 @@ tread    - read file in task (README.md by default)";
 
 impl LaunchCli {
     pub async fn run(rpc: Arc<dyn NodeRpc>, mut ctrl_rx: Receiver<bool>) -> Result<(), CliError> {
-        let mut event_tx = rpc.create_launch_channel().await?;
+        let event_tx = rpc.create_launch_channel().await?;
         let mut event_rx = event_tx.new_receiver();
 
         let mut read_more = true;
@@ -86,17 +86,23 @@ impl LaunchCli {
 
                                 "score" => {
                                     should_print_scores = true;
-                                    event_tx.try_broadcast(LaunchEvent::RefreshScores);
+                                    #[allow(unused_must_use)] {
+                                        event_tx.try_broadcast(LaunchEvent::RefreshScores);
+                                    }
                                 }
 
                                 "rget" => {
                                     should_print_rand = true;
-                                    event_tx.try_broadcast(LaunchEvent::RefreshRand);
+                                    #[allow(unused_must_use)] {
+                                        event_tx.try_broadcast(LaunchEvent::RefreshRand);
+                                    }
                                 }
 
                                 _ => {
                                     if let Some(event) = event {
-                                        event_tx.try_broadcast(event);
+                                        #[allow(unused_must_use)] {
+                                            event_tx.try_broadcast(event);
+                                        }
                                     } else {
                                         writeln!(stdout, "Unknown command: {}", parts[0])?;
                                     }
@@ -104,9 +110,12 @@ impl LaunchCli {
                             };
                         }
                         Err(ReadlineError::Interrupted) => {
-                            writeln!(stdout, "")?;
+                            writeln!(stdout)?;
                             read_more = false;
-                            event_tx.try_broadcast(LaunchEvent::Poweroff);
+
+                            #[allow(unused_must_use)] {
+                                event_tx.try_broadcast(LaunchEvent::Poweroff);
+                            }
                         }
                         Err(ReadlineError::Eof) => read_more = false,
                         Err(ReadlineError::Closed) => read_more = false,
@@ -149,7 +158,7 @@ impl LaunchCli {
                 }
 
                 _ = ctrl_rx.recv() => {
-                    writeln!(stdout, "")?;
+                    writeln!(stdout)?;
                     readline.flush()?;
                     break;
                 }
@@ -159,7 +168,7 @@ impl LaunchCli {
         Ok(())
     }
 
-    fn map_cmd_to_event(parts: &Vec<&str>) -> Option<LaunchEvent> {
+    fn map_cmd_to_event(parts: &[&str]) -> Option<LaunchEvent> {
         Some(match parts[0] {
             "exit" => LaunchEvent::Poweroff,
 

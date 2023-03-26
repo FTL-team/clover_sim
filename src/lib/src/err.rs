@@ -54,7 +54,7 @@ impl NodeError {
             Err(e) => e,
         };
 
-        return NodeError::InternalError(String::from("Unknown error"));
+        NodeError::InternalError(String::from("Unknown error"))
     }
 }
 

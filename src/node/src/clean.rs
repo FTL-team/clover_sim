@@ -25,7 +25,7 @@ impl Cleaner {
         loop {
             let task = self.to_wait_on.lock().expect("Cleanup lock is dead").pop();
             if let Some(task) = task {
-                task.await.map_err(|x| JoinNodeError::from(x))??;
+                task.await.map_err(JoinNodeError::from)??;
             } else {
                 break;
             }

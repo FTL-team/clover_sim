@@ -3,8 +3,6 @@ use std::sync::Arc;
 use cloversim_lib::{err::NodeError, rpc::NodeRpc};
 use cloversim_node::LocalRpc;
 
-use tokio;
-
 fn get_local_rpc() -> Result<Arc<dyn NodeRpc>, NodeError> {
     Ok(Arc::new(LocalRpc::new()))
 }

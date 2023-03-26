@@ -20,6 +20,7 @@ pub struct SimulatorHandle {
 }
 
 impl SimulatorHandle {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let (mut event_broadcast, core_recv) = broadcast(32);
         // dbg!("Created handle");

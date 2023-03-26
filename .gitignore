@@ -2,7 +2,7 @@ workspaces
 base_fs
 containers
 base.sqhsh
-cloversim
+/cloversim
 target
 base.sqsh
 src/lib/bindings

@@ -9,9 +9,9 @@ pub enum ServiceMode {
 
 impl ServiceMode {
     fn launch_name(&self) -> &'static str {
-        match self {
-            &ServiceMode::Copter => "copter.launch",
-            &ServiceMode::Simulator => "simulator.launch",
+        match *self {
+            ServiceMode::Copter => "copter.launch",
+            ServiceMode::Simulator => "simulator.launch",
         }
     }
 }

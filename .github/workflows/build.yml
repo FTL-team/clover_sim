@@ -38,12 +38,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.0
         with:
-          name: cloversim
+          name: cloversim_zip
           path: |
-            virgl
-            tasks
-            sim
-            cloversim
+            cloversim.zip
     
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1

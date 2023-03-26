@@ -5,6 +5,9 @@ import { LaunchEvent } from '../../lib/bindings/LaunchEvent'
 
 type NodeResult<T> = { Ok: T } | { Err: NodeError }
 
+export const rootUrl = new URL('../cloversim_api/', new URL(import.meta.url))
+console.log(rootUrl)
+
 function unwrapNodeResult<T>(result: NodeResult<T>): T {
   if ('Err' in result) {
     throw new Error(JSON.stringify(result.Err))
@@ -13,25 +16,25 @@ function unwrapNodeResult<T>(result: NodeResult<T>): T {
 }
 
 export async function status(): Promise<NodeStatus> {
-  let res = await fetch(`./cloversim_api/status`)
+  let res = await fetch(new URL(`./status`, rootUrl))
   let jres = (await res.json()) as NodeResult<NodeStatus>
   return unwrapNodeResult(jres)
 }
 
 export async function listWorkspaces(): Promise<string[]> {
-  let res = await fetch(`./cloversim_api/list_workspaces`)
+  let res = await fetch(new URL(`./list_workspaces`, rootUrl))
   let jres = (await res.json()) as NodeResult<string[]>
   return unwrapNodeResult(jres)
 }
 
 export async function listTasks(): Promise<TaskInfo[]> {
-  let res = await fetch(`./cloversim_api/list_tasks`)
+  let res = await fetch(new URL(`./list_tasks`, rootUrl))
   let jres = (await res.json()) as NodeResult<TaskInfo[]>
   return unwrapNodeResult(jres)
 }
 
 export async function createWorkspace(name: string): Promise<[]> {
-  let res = await fetch(`./cloversim_api/create_workspace`, {
+  let res = await fetch(new URL(`./create_workspace`, rootUrl), {
     method: 'POST',
     body: JSON.stringify(name),
     headers: {
@@ -43,7 +46,7 @@ export async function createWorkspace(name: string): Promise<[]> {
 }
 
 export async function removeWorkspace(name: string): Promise<[]> {
-  let res = await fetch(`./cloversim_api/remove_workspace`, {
+  let res = await fetch(new URL(`./remove_workspace`, rootUrl), {
     method: 'POST',
     body: JSON.stringify(name),
     headers: {
@@ -58,7 +61,7 @@ export async function cloneWorkspace(
   name: string,
   newName: string
 ): Promise<[]> {
-  let res = await fetch(`./cloversim_api/duplicate_workspace`, {
+  let res = await fetch(new URL(`./duplicate_workspace`, rootUrl), {
     method: 'POST',
     body: JSON.stringify([name, newName]),
     headers: {
@@ -70,7 +73,7 @@ export async function cloneWorkspace(
 }
 
 export async function launch(name: string, task: string): Promise<[]> {
-  let res = await fetch(`./cloversim_api/launch`, {
+  let res = await fetch(new URL(`./launch`, rootUrl), {
     method: 'POST',
     body: JSON.stringify([name, task]),
     headers: {
@@ -82,7 +85,7 @@ export async function launch(name: string, task: string): Promise<[]> {
 }
 
 export async function fetchTaskFile(file = 'README.md') {
-  let res = await fetch(`./cloversim_api/task/${file}`)
+  let res = await fetch(new URL(`./task/${file}`, rootUrl))
   return await res.text()
 }
 
@@ -97,7 +100,7 @@ export class LaunchConnection {
   }
 
   connect() {
-    const url = new URL('./cloversim_api/launch_channel', window.location.href)
+    const url = new URL('./launch_channel', rootUrl)
     url.protocol = url.protocol.replace('http', 'ws')
     const socket = new WebSocket(url)
 
@@ -118,9 +121,11 @@ export class LaunchConnection {
   }
 
   disconnect() {
-    this.socket.close()
-    this.socket = null
-    clearInterval(this.refreshInterval)
+    if (this.socket) {
+      this.socket.close()
+      this.socket = null
+      clearInterval(this.refreshInterval)
+    }
   }
 
   send(ev: LaunchEvent) {

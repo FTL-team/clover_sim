@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct FileLock {
@@ -7,7 +7,7 @@ pub struct FileLock {
 
 impl FileLock {
     // Lock is synchronys to ensure no race conditions  (at least locally)
-    pub fn lock(path: &PathBuf) -> Result<Self, std::io::Error> {
+    pub fn lock(path: &Path) -> Result<Self, std::io::Error> {
         let lock_path = path.join("_.lock");
 
         let f = std::fs::File::options()
