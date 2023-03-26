@@ -40,7 +40,19 @@ sudo apt update && sudo apt install runc libvirglrenderer1 iptables mesa-utils p
 3. Done!!! You can now run simulator
 
 
-## Starting simulator
+## Option 1: Use clover_sim with WebUI
+
+1. Go to `cloversim` directory
+2. Launch cloversim webnode
+    ```bash
+    sudo ./cloversim node
+    ```
+3. Open `localhost:7777` in browser
+4. Enjoy the cloversim
+
+We also have video demonstration/tutorial: [link](https://youtu.be/aPOPHD3M3ZM) 
+
+## Option 2: Use clover_sim with CLI
 
 1. Go to `cloversim` directory
 2. Create workspace
