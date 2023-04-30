@@ -48,6 +48,7 @@ pub struct Launch {
     task_name: String,
     score_entry: WorkEntry,
     rand_entry: WorkEntry,
+    map_entry: WorkEntry,
 
     work_root: Arc<WorkRoot>,
     id: u16,
@@ -100,6 +101,12 @@ impl Launch {
         let rand_entry = work_root.get("task_rand");
         rand_entry.write("0").await?;
 
+        let map_entry = work_root.get("map.txt");
+        map_entry.create().await?;
+        map_entry
+            .set_permissions(Permissions::from_mode(0o666))
+            .await?;
+
         let mut binds = vec![
             BaseBind::RO(net.get_hosts_path(), String::from("/etc/hosts")),
             BaseBind::RO(
@@ -122,6 +129,7 @@ impl Launch {
             task_name: task.name,
             score_entry,
             rand_entry,
+            map_entry,
 
             handle,
             work_root,
@@ -226,6 +234,10 @@ impl Launch {
 
     pub fn get_rand_entry(&self) -> &'_ WorkEntry {
         &self.rand_entry
+    }
+
+    pub fn get_map_entry(&self) -> &'_ WorkEntry {
+        &self.map_entry
     }
 
     pub fn create_event_reciever(&self) -> Receiver<LaunchEvent> {

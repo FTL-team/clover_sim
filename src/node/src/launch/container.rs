@@ -90,6 +90,15 @@ impl<'a> Container<'a> {
                 launch.get_rand_entry().path().clone(),
                 String::from("/home/clover/task_randomization"),
             ));
+            bind_entries.push(BaseBind::RW(
+                launch.get_map_entry().path().clone(),
+                String::from("/home/clover/catkin_ws/src/clover/aruco_pose/map/map.txt"),
+            ));
+        } else {
+            bind_entries.push(BaseBind::RO(
+                launch.get_map_entry().path().clone(),
+                String::from("/home/clover/catkin_ws/src/clover/aruco_pose/map/map.txt"),
+            ));
         }
 
         let base = BaseContainer::start(BaseContainerOptions {
