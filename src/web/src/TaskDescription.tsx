@@ -12,6 +12,8 @@ import c from 'highlight.js/lib/languages/c'
 import cpp from 'highlight.js/lib/languages/cpp'
 import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
+import bash from 'highlight.js/lib/languages/bash'
+import plaintext from 'highlight.js/lib/languages/plaintext'
 
 hljs.registerLanguage('python', python)
 hljs.registerLanguage('javascript', javascript)
@@ -19,6 +21,8 @@ hljs.registerLanguage('cpp', cpp)
 hljs.registerLanguage('c', c)
 hljs.registerLanguage('xml', xml)
 hljs.registerLanguage('yaml', yaml)
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('plaintext', plaintext)
 
 function attachCopyButton(el: HTMLElement) {
   let button = document.createElement('button')
@@ -53,7 +57,8 @@ function attachCopyButton(el: HTMLElement) {
 
 function attachCopyButtonToAll() {
   let els = document.querySelectorAll<HTMLElement>('.hljs')
-  for (let el of els) {
+  for (let code_el of els) {
+    let el = code_el.parentElement
     if (el.querySelector('.' + styles['copy-button'])) continue
     attachCopyButton(el)
   }
