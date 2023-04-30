@@ -8,3 +8,4 @@ base.sqsh
 src/lib/bindings
 src/web/dist
 src/web/node_modules
+tasks/cloversim_course
